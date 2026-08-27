@@ -1,0 +1,17 @@
+.link {
+  font-family: var(--ts-font-mono);
+  font-size: 14px;
+  letter-spacing: 0.2px;
+  color: var(--ts-accent);
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.name {
+  composes: link;
+  font-family: var(--ts-font);
+  letter-spacing: normal;
+  font-size: 14.5px;
+}

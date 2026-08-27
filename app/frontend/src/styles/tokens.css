@@ -1,0 +1,56 @@
+:root {
+  --ts-accent: #0098ea;
+  --ts-green: #2ec06c;
+  --ts-danger: #ff3b30;
+  --ts-tg: #2aabee;
+  --ts-on-accent: #ffffff;
+
+  --ts-font: -apple-system, "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --ts-font-mono: Menlo, "SF Mono", ui-monospace, monospace;
+
+  --ts-status-w: 148px;
+
+  --ts-radius-card: 12px;
+  --ts-radius-group: 10px;
+  --ts-radius-field: 11px;
+  --ts-radius-seg: 9px;
+  --ts-hairline: 0.5px;
+
+  --ts-safe-bottom: env(safe-area-inset-bottom, 0px);
+
+  --ts-sheet-ms: 380ms;
+  --ts-sheet-out-ms: 260ms;
+  --ts-sheet-ease: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+[data-theme="dark"] {
+  --ts-bg: #0e0e11;
+  --ts-card: #1c1c20;
+  --ts-card2: #2a2a2f;
+  --ts-text: #f0f0f3;
+  --ts-value: #e1e1e5;
+  --ts-hint: #8e8e93;
+  --ts-sep: rgba(255, 255, 255, 0.09);
+  --ts-sepf: rgba(255, 255, 255, 0.06);
+  --ts-navbg: rgba(14, 14, 17, 0.94);
+  --ts-seg: rgba(118, 118, 128, 0.24);
+  --ts-thumb: #6c6c72;
+  --ts-backdrop: #000000;
+  --ts-card-shadow: 0 0 55px rgba(200, 205, 215, 0.2);
+}
+
+[data-theme="light"] {
+  --ts-bg: #efeff4;
+  --ts-card: #ffffff;
+  --ts-card2: #f2f2f7;
+  --ts-text: #000000;
+  --ts-value: #2b2b2d;
+  --ts-hint: #8a8a8e;
+  --ts-sep: rgba(0, 0, 0, 0.1);
+  --ts-sepf: rgba(0, 0, 0, 0.07);
+  --ts-navbg: rgba(239, 239, 244, 0.94);
+  --ts-seg: rgba(118, 118, 128, 0.14);
+  --ts-thumb: #ffffff;
+  --ts-backdrop: #e3e3e9;
+  --ts-card-shadow: 0 24px 70px rgba(0, 0, 0, 0.28);
+}

@@ -1,0 +1,66 @@
+{% extends "layout.html" %}
+{% block header %}{% endblock %}
+{% block sidebar %}{% endblock %}
+{% block content %}
+    <style>
+        .gate {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 7px;
+            min-height: 100vh;
+            padding: 40px 30px;
+            text-align: center;
+        }
+
+        .gate-logo {
+            width: 42px;
+            height: 42px;
+        }
+
+        .gate-title {
+            margin-top: 14px;
+            font-size: 19px;
+            font-weight: 700;
+            letter-spacing: -0.4px;
+        }
+
+        .gate-desc {
+            max-width: 300px;
+            font-size: 13.5px;
+            line-height: 1.45;
+            opacity: 0.6;
+        }
+
+        a.gate-button {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 9px;
+            width: 100%;
+            max-width: 260px;
+            margin-top: 16px;
+            padding: 13px;
+            border-radius: 11px;
+            background: #0098ea;
+            color: #fff;
+            font-size: 15.5px;
+            font-weight: 600;
+            text-decoration: none;
+        }
+
+        a.gate-button:hover {
+            color: #fff;
+            text-decoration: none;
+        }
+    </style>
+    <div class="gate">
+        <img src="/logo.svg" class="gate-logo" alt="" />
+        <div class="gate-title">{{ app_title }}</div>
+        <div class="gate-desc">{{ _("The panel opens from the app.") }}</div>
+        <a class="gate-button" href="/">
+            {{ _("Open the app") }}
+        </a>
+    </div>
+{% endblock %}

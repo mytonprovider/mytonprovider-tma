@@ -1,0 +1,113 @@
+.row {
+  padding: 12px 12px 14px;
+  background: var(--ts-card);
+  border-radius: var(--ts-radius-card);
+  cursor: pointer;
+  transition: transform 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.row:active {
+  transform: scale(0.985);
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.pk {
+  min-width: 0;
+  font-family: var(--ts-font-mono);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  color: var(--ts-value);
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.name {
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ts-value);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: 0 0 var(--ts-status-w);
+  min-width: 0;
+  margin-left: auto;
+  overflow: hidden;
+  padding: 2px 7px;
+  border-radius: var(--ts-radius-seg);
+  font-size: 13.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.mark {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.ratio {
+  font-size: 12px;
+  font-weight: 400;
+}
+
+@media (max-width: 339px) {
+  .status {
+    flex-basis: 116px;
+  }
+
+  .ratio {
+    display: none;
+  }
+}
+
+.cells {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px 10px;
+  margin: 12px -12px 0;
+  padding: 12px 12px 0;
+  border-top: var(--ts-hairline) solid var(--ts-sepf);
+}
+
+.cell {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.cellLabel {
+  font-size: 11.5px;
+  color: var(--ts-hint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cellValue {
+  margin-top: 2px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ts-value);
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.unit {
+  color: var(--ts-hint);
+  font-weight: 400;
+}

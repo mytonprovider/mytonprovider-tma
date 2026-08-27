@@ -1,0 +1,63 @@
+:global(html[data-layered]) .banner {
+  display: none;
+}
+
+.banner {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: calc(12px + var(--ts-safe-bottom) + var(--ts-dock-space, 0px));
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 14px;
+  background: var(--ts-card);
+  border: var(--ts-hairline) solid var(--ts-sep);
+  border-radius: 14px;
+  box-shadow: var(--ts-card-shadow);
+}
+
+.body {
+  flex: 1;
+  min-width: 0;
+}
+
+.title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ts-text);
+}
+
+.hint {
+  margin-top: 3px;
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--ts-hint);
+}
+
+.share {
+  vertical-align: -3px;
+  margin: 0 2px;
+  color: var(--ts-accent);
+}
+
+.close {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  line-height: 1;
+  color: var(--ts-hint);
+  background: var(--ts-bg);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.close:active {
+  opacity: 0.6;
+}

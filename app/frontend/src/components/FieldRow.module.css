@@ -1,0 +1,24 @@
+.row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 15px;
+}
+
+.divider {
+  border-top: var(--ts-hairline) solid var(--ts-sepf);
+}
+
+.label {
+  flex: none;
+  font-size: 14.5px;
+  color: var(--ts-hint);
+}
+
+.value {
+  font-size: 14.5px;
+  color: var(--ts-text);
+  text-align: right;
+  word-break: break-word;
+}

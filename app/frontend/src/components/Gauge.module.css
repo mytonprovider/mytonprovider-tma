@@ -1,0 +1,42 @@
+.gauge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 13px 4px 11px;
+  background: var(--ts-card);
+  border-radius: var(--ts-radius-card);
+}
+
+.ring {
+  position: relative;
+  width: 58px;
+  height: 58px;
+}
+
+.svg {
+  display: block;
+}
+
+.center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.value {
+  font-size: 17px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ts-hint);
+  text-align: center;
+  white-space: nowrap;
+}

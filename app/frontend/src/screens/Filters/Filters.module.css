@@ -1,0 +1,131 @@
+.padCard {
+  padding: 14px;
+}
+
+.sortRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 13px 15px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.sortRowActive {
+  background: var(--ts-seg);
+}
+
+.sortLabel {
+  font-size: 15px;
+  font-weight: 400;
+  color: var(--ts-text);
+}
+
+.sortLabelActive {
+  font-weight: 600;
+}
+
+.sortChevron {
+  composes: chevron from "../../styles/list.module.css";
+}
+
+.sortChevronUp {
+  composes: chevronUp from "../../styles/list.module.css";
+}
+
+.subLabel {
+  margin-bottom: 8px;
+  font-size: 13.5px;
+  color: var(--ts-hint);
+}
+
+.chips {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+  padding-bottom: 2px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.chips::-webkit-scrollbar {
+  display: none;
+}
+
+.chip {
+  flex: none;
+  padding: 8px 15px;
+  border: none;
+  border-radius: 16px;
+  background: var(--ts-card2);
+  color: var(--ts-text);
+  font-size: 13.5px;
+  font-weight: 500;
+  font-family: inherit;
+  white-space: nowrap;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.chipMono {
+  font-family: var(--ts-font-mono);
+}
+
+.chipActive {
+  background: var(--ts-accent);
+  color: #fff;
+  font-weight: 600;
+}
+
+.sliderBlock {
+  margin-bottom: 20px;
+}
+
+.sliderHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 14px;
+}
+
+.sliderLabel {
+  font-size: 13.5px;
+  color: var(--ts-hint);
+}
+
+.sliderValue {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ts-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.toggleRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.toggleLabel {
+  font-size: 15px;
+  color: var(--ts-text);
+}
+
+.segWrap {
+  margin-bottom: 14px;
+}
+
+.reset {
+  height: 50px;
+  padding: 0 10px;
+  display: flex;
+  align-items: center;
+  background: none;
+  border: none;
+  color: var(--ts-accent);
+  font-size: 16px;
+  font-family: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}

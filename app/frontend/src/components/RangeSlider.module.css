@@ -1,0 +1,18 @@
+.wrap {
+  position: relative;
+  height: 24px;
+  display: flex;
+  align-items: center;
+}
+
+.track {
+  composes: track from "./slider.module.css";
+}
+
+.fill {
+  composes: fill from "./slider.module.css";
+}
+
+.thumb {
+  composes: thumb from "./slider.module.css";
+}

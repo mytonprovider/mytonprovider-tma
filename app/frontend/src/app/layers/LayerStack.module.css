@@ -1,0 +1,20 @@
+.base {
+  height: 100%;
+  transition: transform var(--ts-sheet-out-ms) var(--ts-sheet-ease);
+}
+
+.base[data-layered] {
+  transform: scale(0.96) translateY(-8px);
+  transition-duration: var(--ts-sheet-ms);
+}
+
+.host {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 70;
+}
+
+.host:empty {
+  display: none;
+}

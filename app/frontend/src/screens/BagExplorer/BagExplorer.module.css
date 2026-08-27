@@ -1,0 +1,130 @@
+.search {
+  margin-top: 14px;
+}
+
+.searchClear {
+  composes: clear from "../../styles/list.module.css";
+}
+
+.link {
+  composes: link from "../../components/ExplorerAddressRow.module.css";
+}
+
+.mono {
+  font-family: var(--ts-font-mono);
+  font-size: 14px;
+  letter-spacing: 0.2px;
+  color: var(--ts-text);
+}
+
+.slash {
+  margin: 0 5px;
+  color: var(--ts-hint);
+}
+
+.count {
+  composes: countWide from "../../styles/list.module.css";
+}
+
+.countBar {
+  composes: countBar from "../../styles/list.module.css";
+}
+
+.list {
+  composes: list from "../../styles/list.module.css";
+}
+
+.report {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  margin-top: 22px;
+  font-size: 13px;
+  color: var(--ts-danger);
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.report:active {
+  opacity: 0.6;
+}
+
+.phead {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 12px 15px 8px;
+}
+
+.pk {
+  composes: mono from "../../styles/list.module.css";
+}
+
+.pstat {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 15px 12px;
+  font-size: 13px;
+}
+
+.plabel {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.badge {
+  flex: none;
+  padding: 1px 6px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.skel {
+  composes: pulse from "../../styles/anim.module.css";
+  display: inline-block;
+  border-radius: 6px;
+  background: var(--ts-seg);
+}
+
+.skLabel {
+  composes: skel;
+  width: 34%;
+  height: 15px;
+}
+
+.skValueWide {
+  composes: skel;
+  width: 58%;
+  height: 15px;
+}
+
+.skValueMid {
+  composes: skel;
+  width: 44%;
+  height: 15px;
+}
+
+.skValueNarrow {
+  composes: skel;
+  width: 32%;
+  height: 15px;
+}
+
+.skPk {
+  composes: skel;
+  width: 54%;
+  height: 16px;
+}
+
+.skStatusBar {
+  composes: skel;
+  width: 42%;
+  height: 14px;
+}
+

@@ -1,0 +1,55 @@
+.viewport {
+  position: relative;
+  height: 100vh;
+  height: 100dvh;
+  height: var(--tg-viewport-stable-height, 100dvh);
+  overflow: hidden;
+  background: var(--ts-bg);
+}
+
+.backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  background:
+    radial-gradient(820px 460px at 50% -8%, rgba(0, 152, 234, 0.12), transparent 62%),
+    var(--ts-backdrop);
+}
+
+.frame {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 430px;
+  height: min(844px, 100%);
+  background: var(--ts-bg);
+  color: var(--ts-text);
+  border-radius: 22px;
+  border: var(--ts-hairline) solid var(--ts-sep);
+  box-shadow: var(--ts-card-shadow);
+  overflow: hidden;
+}
+
+@media (max-width: 520px) {
+  .backdrop {
+    padding: 0;
+    background: var(--ts-bg);
+  }
+
+  .frame {
+    max-width: none;
+    height: 100%;
+    border-radius: 0;
+    border: none;
+    box-shadow: none;
+  }
+}

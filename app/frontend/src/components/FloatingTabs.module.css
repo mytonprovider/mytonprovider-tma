@@ -1,0 +1,73 @@
+.dock {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(var(--ts-safe-bottom) + 14px);
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.bar {
+  position: relative;
+  display: flex;
+  width: calc(100% - 24px);
+  max-width: 460px;
+  padding: 4px;
+  border-radius: 22px;
+  background: var(--ts-navbg);
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
+  border: var(--ts-hairline) solid var(--ts-sep);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.22);
+  pointer-events: auto;
+  touch-action: pan-y;
+}
+
+.thumb {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 4px;
+  border-radius: 18px;
+  background: var(--ts-seg);
+}
+
+.thumbHeld {
+  will-change: transform;
+}
+
+.tab {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  gap: 3px;
+  height: 52px;
+  padding: 0 4px;
+  justify-content: center;
+  border: none;
+  border-radius: 18px;
+  background: transparent;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ts-hint);
+  cursor: pointer;
+  transition: color 0.2s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.active {
+  color: var(--ts-accent);
+}
+
+.label {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}

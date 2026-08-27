@@ -1,0 +1,7 @@
+{% if data %}
+    <div class="badges-list">
+        {% for tag in data %}
+            <a class="badge" href="{{ field.url(tag) }}" target="_blank" title="{{ tag | escape }}">{{ field.fmt(tag) }}</a>
+        {% endfor %}
+    </div>
+{% endif %}

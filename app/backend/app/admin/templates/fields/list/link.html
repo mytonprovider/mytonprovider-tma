@@ -1,0 +1,5 @@
+{% from "fields/_copy_button.html" import copy_button %}
+<span class="d-inline-flex align-items-center gap-2 text-nowrap">
+    <a href="{{ field.url(data) }}" target="_blank" title="{{ data | escape }}">{{ field.fmt(data) }}</a>
+    {% if field.copy_to_clipboard %}{{ copy_button(data) }}{% endif %}
+</span>

@@ -1,0 +1,7 @@
+{% extends "@core/list.html" %}
+{% block list_before_table %}
+    <div class="alert alert-warning d-flex align-items-center rounded-0 border-0 mb-0 py-2" role="alert">
+        <i class="fa-solid fa-triangle-exclamation me-2"></i>
+        Each row marks an already sent notification. Deleting it re-arms the alert: the user will be notified again on the next check.
+    </div>
+{% endblock %}

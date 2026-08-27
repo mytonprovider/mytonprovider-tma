@@ -1,0 +1,148 @@
+{% extends "@core/base.html" %}
+{% block fonts %}{% endblock %}
+{% block head_css %}
+    <link rel="preload"
+          as="font"
+          type="font/woff2"
+          href="{{ static_url(request, 'webfonts/fa-solid-900.woff2') }}"
+          crossorigin>
+    {{ super() }}
+    <script>
+        (() => {
+            const param = new URLSearchParams(location.hash.slice(1)).get("theme");
+            const scheme = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+            let theme = param || localStorage.getItem("mtp-admin-theme") || scheme;
+            const paint = () => {
+                document.documentElement.setAttribute("data-bs-theme", theme);
+                const sidebar = document.querySelector(".navbar-vertical");
+                if (sidebar) sidebar.setAttribute("data-bs-theme", theme);
+                return Boolean(sidebar);
+            };
+            const apply = (next) => {
+                theme = next;
+                localStorage.setItem("mtp-admin-theme", theme);
+                paint();
+            };
+            apply(theme);
+            if (param) history.replaceState(null, "", location.pathname + location.search);
+            const observer = new MutationObserver(() => paint() && observer.disconnect());
+            observer.observe(document.documentElement, { childList: true, subtree: true });
+            addEventListener("DOMContentLoaded", () => {
+                observer.disconnect();
+                paint();
+                document.querySelectorAll("[data-sa-theme]").forEach((link) =>
+                    link.addEventListener("click", (event) => {
+                        event.preventDefault();
+                        apply(link.dataset.saTheme);
+                    }),
+                );
+            });
+        })();
+    </script>
+    <script>
+        (() => {
+            const proxy = window.TelegramWebviewProxy;
+            const framed = window.parent !== window;
+            if (!proxy && !framed) return;
+            const post = (type, data) => {
+                if (proxy) proxy.postEvent(type, JSON.stringify(data));
+                else window.parent.postMessage(JSON.stringify({ eventType: type, eventData: data }), "https://web.telegram.org");
+            };
+            const receive = (type) => {
+                if (type === "back_button_pressed") history.back();
+            };
+            window.TelegramGameProxy_receiveEvent = receive;
+            window.TelegramGameProxy = Object.assign(window.TelegramGameProxy || {}, { receiveEvent: receive });
+            window.Telegram = window.Telegram || {};
+            window.Telegram.WebView = Object.assign(window.Telegram.WebView || {}, { receiveEvent: receive });
+            addEventListener("message", (event) => {
+                try {
+                    receive(JSON.parse(event.data).eventType);
+                } catch (e) {}
+            });
+            post("web_app_setup_back_button", { is_visible: true });
+        })();
+    </script>
+    <style>
+        :root,
+        [data-bs-theme="light"] {
+            --tblr-primary: #0098ea;
+            --tblr-primary-rgb: 0, 152, 234;
+            --tblr-success: #2ec06c;
+            --tblr-danger: #ff3b30;
+            --tblr-border-radius: 11px;
+            --tblr-font-sans-serif: -apple-system, "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
+            --tblr-font-monospace: Menlo, "SF Mono", ui-monospace, monospace;
+            --tblr-body-bg: #efeff4;
+            --tblr-bg-surface: #ffffff;
+            --tblr-bg-surface-secondary: #f2f2f7;
+            --tblr-body-color: #2b2b2d;
+            --tblr-secondary: #8a8a8e;
+            --tblr-border-color: rgba(0, 0, 0, 0.1);
+            --tblr-border-color-translucent: rgba(0, 0, 0, 0.07);
+        }
+        .navbar-vertical .nav-item.dropdown.ms-3 {
+            display: none;
+        }
+        [data-bs-theme="dark"] {
+            --tblr-body-bg: #0e0e11;
+            --tblr-bg-surface: #1c1c20;
+            --tblr-bg-surface-secondary: #2a2a2f;
+            --tblr-body-color: #e1e1e5;
+            --tblr-secondary: #8e8e93;
+            --tblr-border-color: rgba(255, 255, 255, 0.09);
+            --tblr-border-color-translucent: rgba(255, 255, 255, 0.06);
+        }
+        .card {
+            --tblr-border-radius: 12px;
+            --tblr-card-border-width: 0;
+        }
+        @media (max-width: 991.98px) {
+            .navbar-vertical .navbar-brand {
+                margin-right: auto;
+            }
+            .navbar-vertical .admin-theme {
+                order: 1;
+            }
+            .navbar-vertical > .container-fluid > .navbar-nav.flex-row {
+                order: 2;
+            }
+            .navbar-vertical > .container-fluid > .navbar-toggler {
+                order: 3;
+                width: 2.5rem;
+                height: 2.5rem;
+                margin-left: 0.75rem;
+            }
+            .navbar-vertical > .container-fluid > .navbar-collapse {
+                order: 4;
+            }
+        }
+        .fa-solid {
+            display: inline-block;
+            min-width: 1em;
+        }
+        .navbar-vertical .mt-auto .nav-link {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 2rem;
+            height: 2rem;
+            padding: 0;
+            border-radius: var(--tblr-border-radius);
+        }
+        .navbar-vertical .navbar-logo {
+            height: 1.5rem;
+        }
+        .navbar {
+            box-shadow: none;
+        }
+        .brand-link,
+        .brand-link:hover {
+            text-decoration: none;
+        }
+        .brand-link:focus:not(:focus-visible) {
+            outline: none;
+            box-shadow: none;
+        }
+    </style>
+{% endblock %}

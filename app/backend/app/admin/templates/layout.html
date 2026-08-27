@@ -1,0 +1,31 @@
+{% extends "@core/layout.html" %}
+{% block brand %}
+    <span class="d-flex align-items-center gap-2">
+        <img src="/logo.svg" class="navbar-logo" alt="" />
+        <span class="h4 mb-0 lh-1">{{ app_title }}</span>
+    </span>
+{% endblock %}
+{% block navbar %}{% endblock %}
+{% block sidebar_footer %}
+    <div class="admin-theme d-flex d-lg-none align-items-center gap-1">
+        <a href="#" class="nav-link px-2 hide-theme-dark" data-sa-theme="dark" aria-label="Dark theme">
+            <i class="fa-solid fa-moon"></i>
+        </a>
+        <a href="#" class="nav-link px-2 hide-theme-light" data-sa-theme="light" aria-label="Light theme">
+            <i class="fa-solid fa-sun"></i>
+        </a>
+    </div>
+    <div class="mt-auto p-3 border-top d-none d-lg-flex align-items-center gap-1">
+        <span class="avatar avatar-sm"
+              {% if current_user.photo_url %}style="background-image: url({{ current_user.photo_url }})"{% endif %}>
+            {% if not current_user.photo_url %}<i class="fa-solid fa-user"></i>{% endif %}
+        </span>
+        <span class="text-truncate flex-fill ms-1">{{ current_user.username }}</span>
+        <a href="#" class="nav-link px-2 hide-theme-dark" data-sa-theme="dark" aria-label="Dark theme">
+            <i class="fa-solid fa-moon"></i>
+        </a>
+        <a href="#" class="nav-link px-2 hide-theme-light" data-sa-theme="light" aria-label="Light theme">
+            <i class="fa-solid fa-sun"></i>
+        </a>
+    </div>
+{% endblock %}

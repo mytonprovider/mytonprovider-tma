@@ -1,0 +1,24 @@
+services:
+  app:
+    build:
+      context: ./app
+      args:
+        VITE_TG_CLIENT_ID: ${TG_CLIENT_ID}
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    env_file: .env
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    volumes:
+      - ./app/backend/data:/backend/backend/data
+      - ./.git:/backend/.git:ro
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

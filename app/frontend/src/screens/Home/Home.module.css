@@ -1,0 +1,218 @@
+.screen {
+  composes: screen from "../../components/Screen.module.css";
+  position: relative;
+}
+
+.nav {
+  position: relative;
+  flex: none;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px 10px;
+  background: var(--ts-navbg);
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
+  border-bottom: var(--ts-hairline) solid var(--ts-sep);
+}
+
+.navActions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.headerBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: none;
+  border: none;
+  border-radius: 9px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.spin {
+  composes: spin from "../../styles/anim.module.css";
+  display: inline-flex;
+}
+
+
+
+.searchClear {
+  composes: clear from "../../styles/list.module.css";
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.toolbarBtn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 13px 10px;
+  background: var(--ts-card);
+  border: none;
+  border-radius: var(--ts-radius-field);
+  color: var(--ts-text);
+  font-size: 14.5px;
+  font-weight: 500;
+  font-family: inherit;
+  white-space: nowrap;
+  overflow: hidden;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.15s ease;
+}
+
+.toolbarBtn:active {
+  transform: scale(0.97);
+}
+
+.sortChevron {
+  composes: chevron from "../../styles/list.module.css";
+}
+
+.sortChevronUp {
+  composes: chevronUp from "../../styles/list.module.css";
+}
+
+.filterDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ts-accent);
+}
+
+.count {
+  composes: count from "../../styles/list.module.css";
+}
+
+.list {
+  composes: list from "../../styles/list.module.css";
+}
+
+.skeleton {
+  composes: pulse from "../../styles/anim.module.css";
+  padding: 12px 12px 14px;
+  background: var(--ts-card);
+  border-radius: var(--ts-radius-card);
+}
+
+.skHead {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 30px;
+}
+
+.bar {
+  display: block;
+  border-radius: 5px;
+  background: var(--ts-seg);
+}
+
+.skToggle {
+  composes: bar;
+  flex: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+}
+
+.skKey {
+  composes: bar;
+  width: 128px;
+  height: 14px;
+}
+
+.skSpacer {
+  flex: 1;
+}
+
+.skStatus {
+  composes: bar;
+  flex: 0 0 var(--ts-status-w);
+  height: 20px;
+  border-radius: var(--ts-radius-seg);
+}
+
+@media (max-width: 339px) {
+  .skStatus {
+    flex-basis: 116px;
+  }
+}
+
+.skCells {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px 10px;
+  margin: 12px -12px 0;
+  padding: 12px 12px 0;
+  border-top: var(--ts-hairline) solid var(--ts-sepf);
+}
+
+.skCell {
+  min-width: 0;
+}
+
+.skLabel {
+  composes: bar;
+  width: 62%;
+  height: 13px;
+}
+
+.skValue {
+  composes: bar;
+  width: 80%;
+  height: 17px;
+  margin-top: 2px;
+}
+
+
+.fab {
+  position: absolute;
+  right: 16px;
+  bottom: calc(86px + var(--ts-safe-bottom));
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  background: var(--ts-accent);
+  cursor: pointer;
+  z-index: 20;
+  opacity: 0;
+  transform: translateY(8px) scale(0.9);
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.fabVisible {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+
+.calloutBtn {
+  composes: button from "../../components/Callout.module.css";
+}
+
+.fallback {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
+}

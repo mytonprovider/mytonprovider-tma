@@ -1,0 +1,15 @@
+.copyRow {
+  composes: row from "./FieldRow.module.css";
+}
+.copyRowDivider {
+  composes: divider from "./FieldRow.module.css";
+}
+.copyLabel {
+  composes: label from "./FieldRow.module.css";
+}
+.copyValue {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}

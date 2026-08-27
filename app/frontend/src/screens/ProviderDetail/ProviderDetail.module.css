@@ -1,0 +1,467 @@
+.banner {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 10px;
+  padding: 11px 13px;
+  border-radius: 10px;
+}
+
+.bannerText {
+  font-size: 12.5px;
+  line-height: 1.35;
+  font-weight: 500;
+}
+
+.statusCard {
+  margin-top: 10px;
+  background: var(--ts-card);
+  border-radius: var(--ts-radius-card);
+  overflow: hidden;
+}
+
+.statusFooter {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-top: var(--ts-hairline) solid var(--ts-sep);
+}
+
+.bagsBtn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  margin-top: 10px;
+  padding: 13px 16px;
+  border: none;
+  border-radius: var(--ts-radius-card);
+  background: var(--ts-card);
+  color: var(--ts-text);
+  font-family: inherit;
+  font-size: 15px;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.bagsBtn:active {
+  opacity: 0.6;
+}
+
+.bagsTail {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  flex: none;
+}
+
+.bagsBadge {
+  padding: 1px 7px;
+  border-radius: 7px;
+  font-size: 12.5px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.health {
+  display: flex;
+  height: 7px;
+  width: 100%;
+}
+
+.statusBody {
+  padding: 15px 16px;
+}
+
+.statusTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.statusLabelWrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.statusRatio {
+  font-size: 13px;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+
+.checks {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex: none;
+  font-size: 12px;
+}
+
+.checksLabel {
+  font-size: 11.5px;
+  color: var(--ts-hint);
+}
+
+.passedBadge {
+  padding: 2px 7px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.slash {
+  color: var(--ts-hint);
+}
+
+.totalBadge {
+  padding: 2px 7px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  background: var(--ts-card2);
+  color: var(--ts-hint);
+}
+
+.statusDesc {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--ts-hint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.card {
+  margin-top: 14px;
+  background: var(--ts-card);
+  border-radius: var(--ts-radius-card);
+  padding: 16px;
+}
+
+.storageCard {
+  margin-top: 10px;
+}
+
+.balanceCard {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.balanceMain {
+  flex: 1;
+  min-width: 0;
+}
+
+.explorerBtn {
+  flex: none;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ts-accent);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.explorerBtn:active {
+  opacity: 0.6;
+}
+
+.subLabel {
+  font-size: 13px;
+  color: var(--ts-hint);
+}
+
+.balanceRow {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  margin-top: 5px;
+}
+
+.balanceValue {
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--ts-accent);
+}
+
+.balanceUnit {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ts-hint);
+}
+
+.balanceUpdated {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--ts-hint);
+}
+
+.storageTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.storageValue {
+  font-size: 14.5px;
+  font-weight: 600;
+}
+
+.storageBarRow {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin-top: 11px;
+}
+
+.storageBarTrack {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--ts-sepf);
+  overflow: hidden;
+}
+
+.storageBarFill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s ease, background 0.3s ease;
+}
+
+.storagePct {
+  flex: none;
+  min-width: 34px;
+  text-align: right;
+  font-size: 12.5px;
+}
+
+.ownerSegWrap {
+  margin-top: 18px;
+}
+
+.overviewCard {
+  composes: card from "../../components/Card.module.css";
+  margin-top: 18px;
+}
+
+.nameValue {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nameSet {
+  color: var(--ts-accent);
+}
+
+.nameBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  padding: 11px 0;
+  margin: -11px 0;
+  border: none;
+  background: none;
+  font-family: inherit;
+  font-size: 14.5px;
+  color: var(--ts-text);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.nameBtn:active {
+  opacity: 0.6;
+}
+
+.mono {
+  padding: 4px 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: var(--ts-font-mono);
+  font-size: 14px;
+  letter-spacing: 0.2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.monoText {
+  color: var(--ts-text);
+}
+
+
+.noTelemetry {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 12px;
+  padding: 11px 13px;
+  background: var(--ts-card);
+  border-radius: var(--ts-radius-group);
+}
+
+.noTelemetryText {
+  font-size: 12.5px;
+  line-height: 1.35;
+  color: var(--ts-hint);
+}
+
+.summaryCard {
+  margin-top: 14px;
+  background: var(--ts-card);
+  border-radius: var(--ts-radius-card);
+  overflow: hidden;
+}
+
+.periodWrap {
+  padding: 14px 14px 13px;
+}
+
+.summaryRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 15px;
+  border-top: var(--ts-hairline) solid var(--ts-sepf);
+  font-size: 14.5px;
+}
+
+.summaryLabel {
+  color: var(--ts-hint);
+}
+
+.gaugeGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.chartCard {
+  margin-top: 14px;
+  padding: 14px;
+  background: var(--ts-card);
+  border-radius: var(--ts-radius-card);
+}
+
+
+.skel {
+  composes: pulse from "../../styles/anim.module.css";
+  border-radius: 6px;
+  background: var(--ts-seg);
+}
+
+.skelBalanceLabel {
+  composes: skel;
+  width: 64px;
+  height: 16px;
+}
+
+.skelBalanceValue {
+  composes: skel;
+  width: 148px;
+  height: 30px;
+  margin-top: 5px;
+}
+
+.skelBalanceNote {
+  composes: skel;
+  width: 96px;
+  height: 14px;
+  margin-top: 8px;
+}
+
+.skelStorageLabel {
+  composes: skel;
+  width: 92px;
+  height: 16px;
+}
+
+.skelStorageValue {
+  composes: skel;
+  width: 118px;
+  height: 16px;
+}
+
+.skelStorageBar {
+  composes: skel;
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  margin-top: 16px;
+  margin-bottom: 5px;
+}
+
+.skelSeg {
+  composes: skel;
+  width: 100%;
+  height: 36px;
+  border-radius: 10px;
+}
+
+.skelBagsLabel {
+  composes: skel;
+  width: 120px;
+  height: 16px;
+}
+
+@keyframes ts-banner-in {
+  from {
+    max-height: 0;
+    margin-top: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    opacity: 0;
+  }
+  to {
+    max-height: 48px;
+    margin-top: 10px;
+    padding-top: 11px;
+    padding-bottom: 11px;
+    opacity: 1;
+  }
+}
+
+.triggerBanner {
+  composes: banner;
+  overflow: hidden;
+  animation: ts-banner-in 0.28s ease;
+}
+
+.skelValue {
+  composes: skel;
+  width: 84px;
+  height: 14px;
+}
+
+.mark {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}

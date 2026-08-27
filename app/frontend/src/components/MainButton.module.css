@@ -1,0 +1,48 @@
+.button {
+  width: 100%;
+  padding: 15px;
+  border: none;
+  border-radius: var(--ts-radius-card);
+  font-size: 16px;
+  font-weight: 600;
+  font-family: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  color: var(--ts-on-accent);
+  background: var(--ts-accent);
+  transition: background 0.15s ease, opacity 0.15s ease, transform 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.button:active:not(.static):not(.disabled) {
+  transform: scale(0.98);
+}
+
+.destructive {
+  background: var(--ts-danger);
+}
+
+.success {
+  background: var(--ts-green);
+}
+
+.disabled {
+  background: var(--ts-seg);
+  color: var(--ts-hint);
+}
+
+.static {
+  cursor: default;
+}
+
+.spinner {
+  composes: spinFast from "../styles/anim.module.css";
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-top-color: #fff;
+}

@@ -1,0 +1,18 @@
+.button {
+  width: 100%;
+  margin-top: 12px;
+  padding: 14px 12px;
+  border: none;
+  background: none;
+  color: var(--ts-accent);
+  font-size: 15px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.button:active {
+  transform: scale(0.98);
+  opacity: 0.6;
+}

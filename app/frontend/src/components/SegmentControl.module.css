@@ -1,0 +1,42 @@
+.box {
+  position: relative;
+  display: flex;
+  padding: 2px;
+  border-radius: var(--ts-radius-seg);
+  background: var(--ts-seg);
+  touch-action: pan-y;
+}
+
+.thumb {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  left: 2px;
+  border-radius: 7px;
+  background: var(--ts-thumb);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.28);
+  transition: transform 0.26s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.thumbHeld {
+  transition: none;
+  will-change: transform;
+}
+
+.option {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  font-weight: 600;
+  color: var(--ts-hint);
+  cursor: pointer;
+  transition: color 0.2s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.active {
+  color: var(--ts-text);
+}

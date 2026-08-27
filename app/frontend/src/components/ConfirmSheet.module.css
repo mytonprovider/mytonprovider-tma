@@ -1,0 +1,33 @@
+.actions {
+  display: flex;
+  gap: 10px;
+  margin-top: auto;
+  padding-top: 24px;
+}
+
+.btn {
+  flex: 1;
+  height: 50px;
+  border: none;
+  border-radius: 12px;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: filter 0.15s ease;
+}
+
+.btn:active {
+  filter: brightness(0.94);
+}
+
+.ghost {
+  background: var(--ts-seg);
+  color: var(--ts-text);
+}
+
+.danger {
+  background: var(--ts-danger);
+  color: #ffffff;
+}

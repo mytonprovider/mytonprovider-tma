@@ -1,0 +1,27 @@
+.tile {
+  padding: 12px 6px;
+  background: var(--ts-card);
+  border-radius: var(--ts-radius-group);
+  text-align: center;
+}
+
+.value {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--ts-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.unit {
+  margin-left: 3px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ts-hint);
+}
+
+.label {
+  margin-top: 3px;
+  font-size: 11px;
+  color: var(--ts-hint);
+}
+

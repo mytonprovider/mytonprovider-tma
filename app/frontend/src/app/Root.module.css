@@ -1,0 +1,15 @@
+.logout {
+  padding: 12px 20px;
+  border: none;
+  border-radius: var(--ts-radius-field);
+  background: none;
+  color: var(--ts-accent);
+  font-family: inherit;
+  font-size: 15px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.logout:active {
+  opacity: 0.6;
+}

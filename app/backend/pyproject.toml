@@ -1,0 +1,47 @@
+[tool.ruff]
+target-version = "py310"
+line-length = 120
+extend-exclude = ["alembic/versions"]
+
+[tool.ruff.lint]
+select = [
+    "E",
+    "W",
+    "F",
+    "I",
+    "B",
+    "C4",
+    "UP",
+    "SIM",
+    "TCH",
+    "PERF",
+    "T10",
+    "T20",
+    "PIE",
+    "PLE",
+    "RET",
+    "RUF",
+]
+ignore = [
+    "B008",
+    "PERF203",
+]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.mypy]
+python_version = "3.12"
+plugins = ["pydantic.mypy"]
+explicit_package_bases = true
+namespace_packages = true
+ignore_missing_imports = true
+pretty = true
+show_error_codes = true
+check_untyped_defs = true
+disallow_untyped_defs = true
+no_implicit_optional = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+warn_return_any = true
+disable_error_code = ["import-untyped"]

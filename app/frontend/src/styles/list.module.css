@@ -1,0 +1,64 @@
+.count {
+  margin: 12px 0 9px;
+  font-size: 13px;
+  color: var(--ts-hint);
+  text-align: center;
+}
+
+.countWide {
+  composes: count;
+  margin-top: 22px;
+}
+
+.countBar {
+  composes: pulse from "./anim.module.css";
+  display: inline-block;
+  width: 150px;
+  max-width: 60%;
+  height: 13px;
+  vertical-align: middle;
+  border-radius: 5px;
+  background: var(--ts-seg);
+}
+
+.list {
+  composes: fade from "./anim.module.css";
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.clear {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin: -1px 0;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+
+.mono {
+  min-width: 0;
+  font-family: var(--ts-font-mono);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  color: var(--ts-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chevron {
+  display: inline-flex;
+  transition: transform 0.2s ease;
+}
+
+.chevronUp {
+  transform: rotate(180deg);
+}

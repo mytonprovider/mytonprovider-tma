@@ -1,0 +1,2 @@
+{% set tone = {0: "green", 301: "red", 302: "red", 401: "orange", 402: "orange", 403: "orange"} %}
+<span class="badge bg-{{ tone.get(data, "secondary") }}-lt">{{ data }}</span>

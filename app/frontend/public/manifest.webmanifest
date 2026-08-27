@@ -1,0 +1,13 @@
+{
+  "name": "My TON Provider",
+  "short_name": "My TON Provider",
+  "description": "TON Storage providers: telemetry, earnings, status and alerts",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0e0e11",
+  "theme_color": "#0e0e11",
+  "icons": [
+    { "src": "/icon.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

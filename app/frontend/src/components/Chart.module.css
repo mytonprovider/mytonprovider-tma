@@ -1,0 +1,72 @@
+.chart {
+  margin: 14px -14px 0;
+  padding: 14px 14px 0;
+  border-top: var(--ts-hairline) solid var(--ts-sepf);
+}
+
+.head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.label {
+  font-size: 13.5px;
+  color: var(--ts-hint);
+}
+
+.current {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.svg {
+  display: block;
+}
+
+.plot {
+  position: relative;
+  touch-action: none;
+  cursor: crosshair;
+}
+
+.scrubValue {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ts-accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.thresholdLabel {
+  position: absolute;
+  right: 6px;
+  transform: translateY(-110%);
+  font-size: 9.5px;
+  color: #ff3b30;
+  opacity: 0.75;
+  pointer-events: none;
+}
+
+.thresholdLabelBelow {
+  transform: translateY(15%);
+}
+
+.skel {
+  composes: pulse from "../styles/anim.module.css";
+  border-radius: 6px;
+  background: var(--ts-seg);
+}
+
+.skelValue {
+  composes: skel;
+  width: 48px;
+  height: 13px;
+}
+
+.skelBody {
+  composes: skel;
+  height: 60px;
+  border-radius: 8px;
+}

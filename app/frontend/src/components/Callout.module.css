@@ -1,0 +1,96 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 40px 30px;
+  min-height: 252px;
+}
+
+.mark {
+  display: inline-flex;
+}
+
+.title {
+  margin-top: 14px;
+  text-wrap: balance;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.desc {
+  margin-top: 7px;
+  max-width: 270px;
+  min-height: 39px;
+  text-wrap: balance;
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: var(--ts-hint);
+}
+
+.button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  width: 100%;
+  padding: 13px;
+  border: none;
+  border-radius: var(--ts-radius-field);
+  background: var(--ts-accent);
+  color: var(--ts-on-accent);
+  font-size: 15.5px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.15s ease;
+}
+
+.button:active {
+  transform: scale(0.98);
+}
+
+.action {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  max-width: 260px;
+  margin: 16px auto 0;
+}
+
+.hero {
+  flex: none;
+  padding: 20px 12px 10px;
+  min-height: 0;
+}
+
+.hero .mark {
+  filter: drop-shadow(0 6px 18px rgba(0, 152, 234, 0.35));
+}
+
+.disc {
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+}
+
+.hero .title {
+  margin-top: 7px;
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -0.4px;
+}
+
+.hero .desc {
+  margin-top: 3px;
+  max-width: 320px;
+  min-height: 35px;
+  font-size: 13px;
+  line-height: 1.35;
+}

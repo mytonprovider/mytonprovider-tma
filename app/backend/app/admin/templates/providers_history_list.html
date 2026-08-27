@@ -1,0 +1,7 @@
+{% extends "@core/list.html" %}
+{% block list_before_table %}
+    <div class="alert alert-info d-flex align-items-center rounded-0 border-0 mb-0 py-2" role="alert">
+        <i class="fa-solid fa-circle-info me-2"></i>
+        Snapshots of cumulative counters, thinned with age by the rollup worker. Diff two rows to get a period delta.
+    </div>
+{% endblock %}
