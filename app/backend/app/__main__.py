@@ -17,6 +17,8 @@ IMMUTABLE_CACHE = "public, max-age=31536000, immutable"
 REVALIDATE_CACHE = "no-cache"
 
 
+# Starlette sends no Cache-Control, and without it the Telegram webview caches
+# heuristically (~10% of the last-modified age), so a deploy needs a manual reload.
 class CachedStaticFiles(StaticFiles):
     def file_response(
         self,

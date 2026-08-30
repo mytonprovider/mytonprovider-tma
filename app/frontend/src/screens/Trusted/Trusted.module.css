@@ -23,8 +23,7 @@
 }
 
 .error {
-  min-height: 18px;
-  margin: 9px 0 10px;
+  margin: 9px 0 2px;
   font-size: 12.5px;
   line-height: 1.35;
   color: var(--ts-danger);
@@ -70,6 +69,21 @@
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+.channel {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 9px 4px 7px;
+  border-radius: var(--ts-radius-seg);
+  background: rgba(0, 152, 234, 0.13);
+  color: var(--ts-accent);
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .action {

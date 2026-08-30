@@ -34,7 +34,7 @@ export interface Provider {
   pubkey: string;
   address: string;
   status: number | null;
-  statusRatio: number;
+  statusRatio: number | null;
   location: Location | null;
   uptime: number;
   workingTime: number;
@@ -62,45 +62,36 @@ export interface Sort {
 
 export type Range = [number, number];
 
-export interface CatalogFilters {
+// The one place range filters are listed: every map keyed by RangeKey (query.ts metrics,
+// bounds, sliders) has to cover it, so a filter added here cannot be half-wired.
+export const RANGE_KEYS = [
+  "rating",
+  "uptime",
+  "price",
+  "bag",
+  "cores",
+  "ram",
+  "age",
+  "minSpan",
+  "maxSpan",
+  "space",
+  "diskRead",
+  "diskWrite",
+  "download",
+  "upload",
+  "ping",
+] as const;
+
+export type RangeKey = (typeof RANGE_KEYS)[number];
+
+export type CatalogFilters = Record<RangeKey, Range | null> & {
   location: string | null;
-  rating: Range | null;
-  uptime: Range | null;
-  price: Range | null;
-  bag: Range | null;
-  cores: Range | null;
-  ram: Range | null;
-  age: Range | null;
-  minSpan: Range | null;
-  maxSpan: Range | null;
-  space: Range | null;
-  diskRead: Range | null;
-  diskWrite: Range | null;
-  download: Range | null;
-  upload: Range | null;
-  ping: Range | null;
   cpuVirtual: boolean | null;
   storageHash: string | null;
   providerHash: string | null;
   freeSpace: boolean;
   telemetry: boolean | null;
   stableOnly: boolean;
-}
+};
 
-export interface FilterBounds {
-  rating: Range;
-  uptime: Range;
-  price: Range;
-  bag: Range;
-  cores: Range;
-  ram: Range;
-  age: Range;
-  minSpan: Range;
-  maxSpan: Range;
-  space: Range;
-  diskRead: Range;
-  diskWrite: Range;
-  download: Range;
-  upload: Range;
-  ping: Range;
-}
+export type FilterBounds = Record<RangeKey, Range>;

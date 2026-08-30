@@ -39,8 +39,14 @@ def on_close(dbapi_connection: Any, _connection_record: Any) -> None:
     cursor.close()
 
 
+# The base and its two companions by name, not by mask: "database.sqlite*" also matched
+# the copy laid beside the base before a migration, and the panel reported 148 MB where
+# the database was 82. A backup next to the base is our own rule, so the mask was a trap.
+DB_FILES = ("database.sqlite", "database.sqlite-wal", "database.sqlite-shm")
+
+
 def db_size() -> int:
-    return sum(path.stat().st_size for path in db_dir.glob("database.sqlite*"))
+    return sum(path.stat().st_size for path in (db_dir / name for name in DB_FILES) if path.exists())
 
 
 async def get_session() -> AsyncIterator[AsyncSession]:

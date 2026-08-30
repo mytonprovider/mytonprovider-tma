@@ -1,0 +1,4 @@
+{% set url = field.href(request, row) if field.href else None %}
+<span class="d-block text-end text-nowrap" title="confirmed of hired">
+    {%- if url -%}<a href="{{ url }}">{{ data }}</a>{%- else -%}{{ data }}{%- endif -%}
+</span>

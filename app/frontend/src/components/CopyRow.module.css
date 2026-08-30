@@ -1,6 +1,9 @@
 .copyRow {
   composes: row from "./FieldRow.module.css";
 }
+.copyRowCompact {
+  composes: compact from "./FieldRow.module.css";
+}
 .copyRowDivider {
   composes: divider from "./FieldRow.module.css";
 }

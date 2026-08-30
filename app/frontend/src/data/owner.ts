@@ -1,7 +1,7 @@
 import type { TriggerKey } from "@/i18n/types";
 import { ACCENT, SC } from "@/lib/colors";
-import { EMPTY, NANO, amount, formatBytes, formatPriceGram, formatSpace } from "@/lib/format";
-import { DEFAULT_THRESHOLD, type ThresholdMap } from "./alerts";
+import { EMPTY, NANO, amount, formatBytes, formatPriceGram, formatSpace, spacePair } from "@/lib/format";
+import { defaultThreshold, type ThresholdMap } from "./alerts";
 import type { OwnerChartPoint, OwnerPayload, OwnerSummary, OwnerTriggerEntry } from "./backend";
 import type { Provider } from "./types";
 
@@ -44,12 +44,16 @@ interface OwnerChartData {
 interface OwnerData {
   balance: string;
   balanceUpdatedAt: number | null;
+  income: string;
+  incomeMax: string | null;
   usedSpace: string;
   totalSpace: string;
+  spaceUnit: string;
+  spaceKnown: boolean;
   usedPct: number;
   barColor: string;
   spaceOver: boolean;
-  summary: { earned: string; trafficIn: string; trafficOut: string; storageGrowth: string };
+  summary: { earned: string; bagsAdded: string; trafficIn: string; trafficOut: string; storageGrowth: string };
   monthly: { earned: string; space: string; traffic: string };
   allTime: { earned: string; space: string; traffic: string };
   gauges: OwnerGaugeData[];
@@ -91,6 +95,7 @@ function formatGrowth(bytes: number | null): string {
 function summaryBlock(summary: OwnerSummary) {
   return {
     earned: formatGram(summary.earned),
+    bagsAdded: `+${summary.bags_added}`,
     trafficIn: formatBytes(summary.traffic_in),
     trafficOut: formatBytes(summary.traffic_out),
     storageGrowth: formatGrowth(summary.storage_growth_bytes),
@@ -132,7 +137,7 @@ function lastValue(values: (number | null)[]): number | null {
 }
 
 function threshold(thresholds: ThresholdMap, key: GaugeKey): number {
-  return thresholds[key] ?? DEFAULT_THRESHOLD;
+  return thresholds[key] ?? defaultThreshold(key);
 }
 
 export function adaptOwner(p: Provider, payload: OwnerPayload, thresholds: ThresholdMap): OwnerData {
@@ -140,7 +145,8 @@ export function adaptOwner(p: Provider, payload: OwnerPayload, thresholds: Thres
   const totalBytes = p.telemetry.totalSpaceBytes ?? 0;
   const usedPct = totalBytes > 0 ? Math.min(100, (usedBytes / totalBytes) * 100) : 0;
   const usedPctRound = Math.round(usedPct);
-  const spaceThreshold = thresholds.disk_space_low ?? DEFAULT_THRESHOLD;
+  const pair = spacePair(usedBytes, totalBytes);
+  const spaceThreshold = thresholds.disk_space_low ?? defaultThreshold("disk_space_low");
   const barColor = usedPct >= 99 ? SC.red : usedPct >= spaceThreshold ? SC.orange : ACCENT;
 
   const load = gaugeValues(payload);
@@ -152,8 +158,12 @@ export function adaptOwner(p: Provider, payload: OwnerPayload, thresholds: Thres
   return {
     balance: payload.balance != null ? amount(payload.balance / NANO) : EMPTY,
     balanceUpdatedAt: payload.balance_updated_at,
-    usedSpace: formatSpace(usedBytes),
-    totalSpace: formatSpace(totalBytes),
+    income: amount(payload.income / NANO),
+    incomeMax: payload.income_max != null ? amount(payload.income_max / NANO) : null,
+    usedSpace: pair?.used ?? EMPTY,
+    totalSpace: pair?.total ?? EMPTY,
+    spaceUnit: pair?.unit ?? "",
+    spaceKnown: totalBytes > 0,
     usedPct: usedPctRound,
     barColor,
     spaceOver: usedPctRound >= spaceThreshold,

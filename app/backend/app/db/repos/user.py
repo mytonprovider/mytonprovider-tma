@@ -2,23 +2,31 @@ from typing import Any
 
 from sqlalchemy import Row, func, select
 
-from app.alerts import DEFAULT_THRESHOLDS
+from app.alerts import DEFAULT_THRESHOLDS, AlertType
 from app.db.models import UserModel
 from app.db.repos._base import BaseRepo
 from app.utils import utcnow
 
+# What a new user gets subscribed to. Listed by hand on purpose: adding a member to
+# AlertType must not start sending it to everybody by itself.
 DEFAULT_ALERT_TYPES = [
-    "telemetry_lost",
-    "not_online",
-    "service_restarted",
-    "reward_received",
-    "monthly_report",
-    "bag_added",
-    "cpu_high",
-    "ram_high",
-    "network_high",
-    "disk_load_high",
-    "disk_space_low",
+    AlertType.CPU_HIGH.value,
+    AlertType.RAM_HIGH.value,
+    AlertType.NETWORK_HIGH.value,
+    AlertType.DISK_LOAD_HIGH.value,
+    AlertType.DISK_SPACE_LOW.value,
+    AlertType.BAG_ADDED.value,
+    AlertType.BAG_STORED.value,
+    AlertType.BAG_SLOW.value,
+    AlertType.BAG_REMOVED.value,
+    AlertType.BAG_UNPAID.value,
+    AlertType.BAG_REFILLED.value,
+    AlertType.BAG_CLOSED.value,
+    AlertType.DAILY_REPORT.value,
+    AlertType.MONTHLY_REPORT.value,
+    AlertType.TELEMETRY_LOST.value,
+    AlertType.NOT_ONLINE.value,
+    AlertType.SERVICE_RESTARTED.value,
 ]
 
 

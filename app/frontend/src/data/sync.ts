@@ -1,6 +1,6 @@
 import { type AlertSettingsPayload, BackendError, type NamesPayload, backend } from "@/data/backend";
 import type { Explorer, Theme } from "@/stores/settings";
-import { ALERT_TYPES, DEFAULT_THRESHOLD, type AlertTypeMap, type ThresholdMap } from "@/data/alerts";
+import { ALERT_TYPES, defaultThreshold, type AlertTypeMap, type ThresholdMap } from "@/data/alerts";
 import { normalizeLang } from "@/i18n";
 import type { AlertKey, Lang } from "@/i18n/types";
 import { toUserFriendly } from "@/lib/address";
@@ -9,6 +9,7 @@ import { useAuth } from "@/stores/auth";
 import { useSettings } from "@/stores/settings";
 import { useFavorites } from "@/stores/favorites";
 import { useNames } from "@/stores/names";
+import { useChannels } from "@/stores/channels";
 import { useSubscriptions } from "@/stores/subscriptions";
 import { useTrusted } from "@/stores/trusted";
 
@@ -24,7 +25,7 @@ function toAlertMaps(payload: AlertSettingsPayload): { types: AlertTypeMap; thre
   const thresholds: ThresholdMap = {};
   for (const type of ALERT_TYPES) {
     types[type.key] = payload.types.includes(type.key);
-    if (type.threshold) thresholds[type.key] = payload.thresholds[type.key] ?? DEFAULT_THRESHOLD;
+    if (type.threshold) thresholds[type.key] = payload.thresholds[type.key] ?? defaultThreshold(type.key);
   }
   return { types, thresholds };
 }
@@ -35,7 +36,7 @@ function serializeAlerts(): AlertSettingsPayload {
     enabled: state.enabled,
     types: ALERT_TYPES.filter((a) => state.types[a.key]).map((a) => a.key),
     thresholds: Object.fromEntries(
-      ALERT_TYPES.filter((a) => a.threshold).map((a) => [a.key, state.thresholds[a.key] ?? DEFAULT_THRESHOLD]),
+      ALERT_TYPES.filter((a) => a.threshold).map((a) => [a.key, state.thresholds[a.key] ?? defaultThreshold(a.key)]),
     ),
   };
 }
@@ -79,6 +80,7 @@ export async function hydrateFromServer(adoptPreferences = false): Promise<void>
   }
   useFavorites.getState().setAll(profile.favorites);
   useTrusted.getState().setAll(profile.trusted_addresses);
+  useChannels.getState().setAll(profile.channels);
   useNames.getState().setAll(profile.names.providers, profile.names.addresses);
   useSubscriptions
     .getState()

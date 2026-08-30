@@ -1,14 +1,18 @@
 from ._base import BaseModel, UTCDateTime
 from .alert import AlertModel
-from .contract import ContractModel
+from .alert_channel import AlertChannelModel
+from .bag import BagModel
+from .bag_slot import BagSlotModel
 from .provider import ProviderHistoryModel, ProviderModel
 from .subscription import SubscriptionModel
 from .user import UserModel
 
 __all__ = [
+    "AlertChannelModel",
     "AlertModel",
+    "BagModel",
+    "BagSlotModel",
     "BaseModel",
-    "ContractModel",
     "ProviderHistoryModel",
     "ProviderModel",
     "SubscriptionModel",

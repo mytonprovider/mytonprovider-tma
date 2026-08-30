@@ -1,8 +1,9 @@
-import base64
 import html
 import time
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
+
+from ton_core.contrib.types import Address
 
 from app import config
 
@@ -19,10 +20,23 @@ def format_amount(value: float, digits: int = 2, sign: bool = False) -> str:
     return text.rstrip("0").rstrip(".") if "." in text else text
 
 
+# Money is written the same way everywhere - app, bot and admin panel: nanoton in,
+# four decimals out, trailing zeros trimmed.
+def format_gram(value: int, digits: int = 4, sign: bool = False) -> str:
+    return f"{format_amount(value / 1e9, digits=digits, sign=sign)} GRAM"
+
+
+# One scale for the whole project: divisor 1024, Latin labels, no GiB/MiB on screen.
+# The price is accepted: a file Finder shows as 4.28 GB reads as 3.99 GB here.
 SIZE_UNITS = ((1024**4, "TB"), (1024**3, "GB"), (1024**2, "MB"), (1024, "KB"))
+
+# Disk and RAM stop at GB on purpose - that way the number matches what the provider
+# typed into the installer, which asks for gigabytes and multiplies by 1024.
 SPACE_UNITS = SIZE_UNITS[1:]
 ROUND_FROM = 1000
 
+# Network speed is decimal: bits over 10**6, labelled Mbit/s. Telemetry reports
+# net load in mebibits, hence the conversion; fio strings stay binary at MiB/s.
 BITS_IN_BYTE = 8
 BITS_IN_MBIT = 10**6
 MIBIT_IN_MBIT = 1024**2 / 10**6
@@ -63,24 +77,24 @@ def short_address(address: str) -> str:
     return html.escape(f"{address[:6]}…{address[-6:]}")
 
 
-def _crc16(data: bytes) -> bytes:
-    crc = 0
-    for byte in data:
-        crc ^= byte << 8
-        for _ in range(8):
-            crc = ((crc << 1) ^ 0x1021) & 0xFFFF if crc & 0x8000 else (crc << 1) & 0xFFFF
-    return crc.to_bytes(2, "big")
+def bounceable(address: str) -> str:
+    try:
+        return Address(address).to_str(is_bounceable=True)
+    except Exception:
+        return address
 
 
 def user_friendly(address: str) -> str:
     try:
-        raw = base64.b64decode(address.replace("-", "+").replace("_", "/"))
-    except ValueError:
+        return Address(address).to_str(is_bounceable=False)
+    except Exception:
         return address
-    if len(raw) != 36:
-        return address
-    body = bytes([(raw[0] & 0x80) | 0x51]) + raw[1:34]
-    return base64.urlsafe_b64encode(body + _crc16(body)).decode()
+
+
+def previous_day() -> tuple[datetime, datetime]:
+    zone = ZoneInfo(config.TIMEZONE)
+    day_start = utcnow().astimezone(zone).replace(hour=0, minute=0, second=0, microsecond=0)
+    return (day_start - timedelta(days=1)).astimezone(timezone.utc), day_start.astimezone(timezone.utc)
 
 
 def previous_month() -> tuple[datetime, datetime]:

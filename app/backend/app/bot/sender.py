@@ -9,10 +9,12 @@ from aiogram.exceptions import (
     TelegramRetryAfter,
     TelegramServerError,
 )
-from aiogram.types import InputRichMessage, LinkPreviewOptions
+from aiogram.types import LinkPreviewOptions
 
 from app.bot import bot, logger
 
+# Every outgoing message in the process goes through this lock: Telegram counts
+# 30 messages per second per bot, and workers send from several coroutines at once.
 lock = asyncio.Lock()
 
 SEND_INTERVAL = 1 / 30
@@ -51,13 +53,5 @@ async def send_message(user_id: int, text: str, max_retries: int = 7) -> Result:
             text=text,
             link_preview_options=LinkPreviewOptions(is_disabled=True),
         ),
-        max_retries,
-    )
-
-
-async def send_rich_message(user_id: int, rich_message: InputRichMessage, max_retries: int = 7) -> Result:
-    return await _send(
-        user_id,
-        lambda: bot.send_rich_message(chat_id=user_id, rich_message=rich_message),
         max_retries,
     )

@@ -1,0 +1,18 @@
+{% from "fields/_copy_button.html" import copy_button %}
+<span class="d-inline-flex align-items-center gap-2 text-nowrap">
+    {% set label = data if request.state.action == "DETAIL" else field.fmt(data) %}
+    {% if field.view_key %}
+        <a class="font-monospace" href="{{ detail_url(request, field.view_key, data) }}"
+           title="{{ data | escape }}">{{ label }}</a>
+    {% elif field.href %}
+        <a class="font-monospace" href="{{ field.href(data) }}" title="{{ data | escape }}">{{ label }}</a>
+    {% else %}
+        <span class="font-monospace" title="{{ data | escape }}">{{ label }}</span>
+    {% endif %}
+    {% if field.copy_to_clipboard %}{{ copy_button(data) }}{% endif %}
+    {% if field.external %}
+        <a href="{{ field.external(data) }}" target="_blank" title="open outside">
+            <i class="fa-solid fa-arrow-up-right-from-square fa-xs"></i>
+        </a>
+    {% endif %}
+</span>

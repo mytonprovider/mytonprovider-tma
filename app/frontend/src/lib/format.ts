@@ -49,6 +49,10 @@ export function amount(value: number): string {
   return trim(value, 2);
 }
 
+export function formatCount(value: number): string {
+  return value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, "\u2009");
+}
+
 export function formatPrice(nanoTon: number): string {
   return amount(nanoTon / NANO);
 }
@@ -57,8 +61,13 @@ export function formatPriceGram(nanoTon: number): string {
   return `${formatPrice(nanoTon)} GRAM`;
 }
 
+// One scale for the whole project: divisor 1024, Latin labels, no GiB/MiB anywhere.
+// The price is accepted: a file Finder shows as 4.28 GB reads as 3.99 GB here.
 const BYTE_UNITS = ["B", "KB", "MB", "GB", "TB"];
 const BYTE_MAX = BYTE_UNITS.length - 1;
+
+// Disk and RAM stop at GB on purpose - that way the number matches what the provider
+// typed into the installer, which asks for gigabytes and multiplies by 1024.
 const SPACE_MAX = BYTE_UNITS.indexOf("GB");
 const ROUND_FROM = 1000;
 
@@ -85,6 +94,25 @@ export function formatBytes(bytes: number | null): string {
 
 export function formatSpace(bytes: number | null): string {
   return sized(bytes, SPACE_MAX);
+}
+
+// Both halves in gigabytes always, so the unit is written once and at the end, the way
+// GRAM is. The price: a nearly empty disk reads as a fraction, not as megabytes.
+const SPACE_DIVISOR = 1024 ** SPACE_MAX;
+const SPACE_UNIT = BYTE_UNITS[SPACE_MAX];
+
+export function spacePair(
+  used: number | null,
+  total: number | null,
+): { used: string; total: string; unit: string } | null {
+  if (used === null || total === null || !Number.isFinite(used) || !Number.isFinite(total) || total <= 0) return null;
+  const one = (bytes: number) => trim(bytes / SPACE_DIVISOR, bytes / SPACE_DIVISOR >= ROUND_FROM ? 0 : 2);
+  return { used: one(used), total: one(total), unit: SPACE_UNIT };
+}
+
+export function formatSpacePair(used: number | null, total: number | null): string {
+  const pair = spacePair(used, total);
+  return pair ? `${pair.used} / ${pair.total} ${pair.unit}` : EMPTY;
 }
 
 export function formatTime(secs: number, t: Dict, skipLast = false): string {

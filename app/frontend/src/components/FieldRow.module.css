@@ -4,6 +4,13 @@
   align-items: center;
   gap: 12px;
   padding: 11px 15px;
+  font-size: 14.5px;
+}
+
+.compact {
+  composes: row;
+  padding: 9px 14px;
+  font-size: 13.5px;
 }
 
 .divider {
@@ -12,12 +19,10 @@
 
 .label {
   flex: none;
-  font-size: 14.5px;
   color: var(--ts-hint);
 }
 
 .value {
-  font-size: 14.5px;
   color: var(--ts-text);
   text-align: right;
   word-break: break-word;

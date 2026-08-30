@@ -11,20 +11,18 @@ import type { Lang } from "@/i18n/types";
 import { isInTelegram, notify } from "@/lib/telegram";
 import { useAuth } from "@/stores/auth";
 import { type Explorer, type Theme, useSettings } from "@/stores/settings";
-import { useTrusted } from "@/stores/trusted";
 import { useNavigate } from "react-router-dom";
 import styles from "./MenuSheet.module.css";
 
 interface MenuRowProps {
   glyph: GlyphName;
   label: string;
-  count?: number;
   href?: string;
   external?: boolean;
   onClick?: () => void;
 }
 
-function MenuRow({ glyph, label, count, href, external, onClick }: MenuRowProps) {
+function MenuRow({ glyph, label, href, external, onClick }: MenuRowProps) {
   const body = (
     <>
       <span className={styles.tile}>
@@ -32,7 +30,6 @@ function MenuRow({ glyph, label, count, href, external, onClick }: MenuRowProps)
       </span>
       {label}
       <span className={styles.tail}>
-        {count ? <span className={styles.count}>{count}</span> : null}
         <Icon glyph={external ? "external" : "chevron"} size={external ? 15 : 16} color="var(--ts-hint)" />
       </span>
     </>
@@ -61,7 +58,6 @@ export function MenuSheet() {
   const lang = useAppliedLang();
   const explorer = useSettings((s) => s.explorer);
 
-  const trustedCount = useTrusted((s) => s.addresses.length);
 
   const loggedIn = useAuth((s) => s.loggedIn);
   const user = useAuth((s) => s.user);
@@ -143,8 +139,9 @@ export function MenuSheet() {
 
       <div className={styles.group}>
         {isAdmin && <MenuRow glyph="sliders" label={t.adminPanel} onClick={openAdmin} />}
+        <MenuRow glyph="bell" label={t.alertSettings} onClick={() => navigate("/alerts")} />
         <MenuRow glyph="search" label={t.explorerTitle} onClick={() => navigate("/bags")} />
-        <MenuRow glyph="check" label={t.trustedTitle} count={trustedCount} onClick={() => navigate("/trusted")} />
+        <MenuRow glyph="check" label={t.trustedTitle} onClick={() => navigate("/trusted")} />
         <MenuRow glyph="server" label={t.becomeProvider} href="https://github.com/igroman787/mytonprovider" external />
         <MenuRow glyph="telegram" label={t.support} href="https://t.me/mytonprovider_chat" external />
       </div>

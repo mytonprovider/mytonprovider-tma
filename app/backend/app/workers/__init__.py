@@ -7,8 +7,10 @@ from .check_alerts import CheckAlertsWorker
 from .db_backup import DbBackupWorker
 from .rollup_history import RollupHistoryWorker
 from .scan_bags import ScanBagsWorker
+from .scan_msgs import ScanMsgsWorker
 from .scan_wallets import ScanWalletsWorker
 from .send_reports import SendReportsWorker
+from .sync_bags import SyncBagsWorker
 from .sync_providers import SyncProvidersWorker
 
 __all__ = ["WORKERS", "start", "stop"]
@@ -16,7 +18,9 @@ __all__ = ["WORKERS", "start", "stop"]
 WORKERS: tuple[type[BaseWorker], ...] = (
     SyncProvidersWorker,
     ScanWalletsWorker,
+    SyncBagsWorker,
     ScanBagsWorker,
+    ScanMsgsWorker,
     CheckAlertsWorker,
     SendReportsWorker,
     RollupHistoryWorker,

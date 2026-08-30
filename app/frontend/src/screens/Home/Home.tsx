@@ -6,7 +6,7 @@ import { RoundToggle } from "@/components/RoundToggle";
 import { TabPager } from "@/components/TabPager";
 import { TelegramLoginButton } from "@/components/TelegramLoginButton";
 import { countActiveFilters, selectCatalog } from "@/data/query";
-import { hydrateFromServer, setAlertsEnabled, toggleBell, toggleFavorite } from "@/data/sync";
+import { hydrateFromServer, toggleBell, toggleFavorite } from "@/data/sync";
 import type { Provider } from "@/data/types";
 import type { ReactNode } from "react";
 import { useT } from "@/i18n";
@@ -14,7 +14,6 @@ import { cx } from "@/lib/cx";
 import { reducedMotion } from "@/lib/motion";
 import { notify } from "@/lib/telegram";
 import { isHydrated, onHydrated } from "@/lib/storage";
-import { useAlerts } from "@/stores/alerts";
 import { useAuth } from "@/stores/auth";
 import { useCatalog } from "@/stores/catalog";
 import { PAGE_SIZE, type Tab, useCatalogQuery } from "@/stores/catalogQuery";
@@ -59,7 +58,6 @@ export function Home() {
   const loggedIn = useAuth((s) => s.loggedIn);
   const subscribed = useSubscriptions((s) => s.subscribed);
   const alertsOff = useSubscriptions((s) => s.alertsOff);
-  const alertEnabled = useAlerts((s) => s.enabled);
 
   const panes = useRef<Record<string, HTMLDivElement | null>>({});
   const reloadTimer = useRef<ReturnType<typeof setTimeout>>();
@@ -78,24 +76,17 @@ export function Home() {
   }, [tab]);
 
   const listItems = useMemo(
-    () => selectCatalog(providers, { favTab: false, search, filters, sort, favorites, names, bounds }),
-    [providers, search, filters, sort, favorites, names, bounds],
+    () => selectCatalog(providers, { only: null, search, filters, sort, names, bounds }),
+    [providers, search, filters, sort, names, bounds],
   );
   const favItems = useMemo(
-    () => selectCatalog(providers, { favTab: true, search, filters, sort, favorites, names, bounds }),
-    [providers, search, filters, sort, favorites, names, bounds],
+    () => selectCatalog(providers, { only: favorites, search, filters, sort, names, bounds }),
+    [providers, favorites, search, filters, sort, names, bounds],
   );
-  const subItems = useMemo(() => {
-    if (!loggedIn) return [];
-    const query = search.trim().toLowerCase();
-    return providers.filter(
-      (p) =>
-        subscribed.includes(p.pubkey) &&
-        (!query ||
-          p.pubkey.toLowerCase().includes(query) ||
-          (names[p.pubkey] ?? "").toLowerCase().includes(query)),
-    );
-  }, [loggedIn, providers, subscribed, search, names]);
+  const subItems = useMemo(
+    () => (loggedIn ? selectCatalog(providers, { only: subscribed, search, filters, sort, names, bounds }) : []),
+    [loggedIn, providers, subscribed, search, filters, sort, names, bounds],
+  );
 
   const hydrated = useSyncExternalStore(onHydrated, isHydrated);
   const activeFilters = countActiveFilters(filters);
@@ -185,22 +176,7 @@ export function Home() {
 
   const favToolbar = (favItems.length > 0 || favLoading) && sortToolbar;
 
-  const subsToolbar = (subItems.length > 0 || subsLoading) && (
-    <div className={styles.toolbar}>
-      <button type="button" className={styles.toolbarBtn} onClick={() => setAlertsEnabled(!alertEnabled)}>
-        {alertEnabled ? (
-          <Icon glyph="bell" size={16} color="var(--ts-accent)" filled />
-        ) : (
-          <Icon glyph="bellOff" size={16} color="var(--ts-hint)" />
-        )}
-        {t.notifBtn}
-      </button>
-      <button type="button" className={styles.toolbarBtn} onClick={() => navigate("/alerts")}>
-        <Icon glyph="sliders" size={16} />
-        {t.settingsBtn}
-      </button>
-    </div>
-  );
+  const subsToolbar = (subItems.length > 0 || subsLoading) && sortToolbar;
 
   const query = search.trim();
 
@@ -247,8 +223,10 @@ export function Home() {
               errorState("subs")
             ) : query ? (
               searchState("subs")
-            ) : (
+            ) : subscribed.length === 0 ? (
               state("subs", t.subsEmpty, actionButton(t.findProviders, () => setTab("list")))
+            ) : (
+              state("subs", t.providersNotFound, activeFilters > 0 ? actionButton(t.reset, resetFilters) : undefined)
             )
           }
           onOpen={openProvider}

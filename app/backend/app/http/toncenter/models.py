@@ -1,7 +1,7 @@
 from typing import Any
 
 from pydantic import BaseModel as _BaseModel
-from pydantic import ConfigDict
+from pydantic import ConfigDict, field_validator
 
 
 class BaseModel(_BaseModel):
@@ -17,11 +17,18 @@ class Message(BaseModel):
     ihr_fee: int | None = None
     created_lt: int | None = None
     created_at: int | None = None
-    opcode: str | None = None
+    opcode: int | None = None
     ihr_disabled: bool | None = None
     bounce: bool | None = None
     bounced: bool | None = None
     import_fee: int | None = None
+
+    @field_validator("opcode", mode="before")
+    @classmethod
+    def _hex_opcode(cls, value: Any) -> Any:
+        if isinstance(value, str):
+            return int(value, 16)
+        return value
 
 
 class AccountState(BaseModel):
@@ -31,6 +38,20 @@ class AccountState(BaseModel):
     frozen_hash: str | None = None
     code_hash: str | None = None
     data_hash: str | None = None
+
+
+class Account(BaseModel):
+    address: str
+    balance: int | None = None
+    status: str | None = None
+    code_hash: str | None = None
+    data_hash: str | None = None
+    data_boc: str | None = None
+    last_transaction_lt: int | None = None
+
+
+class AddressEntry(BaseModel):
+    user_friendly: str | None = None
 
 
 class Transaction(BaseModel):
@@ -49,6 +70,16 @@ class Transaction(BaseModel):
     account_state_before: AccountState | None = None
     account_state_after: AccountState | None = None
     mc_block_seqno: int | None = None
+
+
+class MessageList(BaseModel):
+    messages: list[Message] = []
+    address_book: dict[str, AddressEntry] = {}
+
+
+class AccountList(BaseModel):
+    accounts: list[Account] = []
+    address_book: dict[str, AddressEntry] = {}
 
 
 class TransactionList(BaseModel):

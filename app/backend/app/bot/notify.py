@@ -2,7 +2,7 @@ import html
 import logging
 import traceback
 
-from aiogram.types import BufferedInputFile, InputRichMessage
+from aiogram.types import BufferedInputFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import config
@@ -10,7 +10,7 @@ from app.alerts import AlertColor, AlertType
 from app.bot import bot, render, sender
 from app.bot.translator import t
 from app.db.models import UserModel
-from app.db.repos import SubscriptionRepo
+from app.db.repos import AlertChannelRepo, SubscriptionRepo
 from app.utils import user_friendly
 
 logger = logging.getLogger(__name__)
@@ -34,42 +34,64 @@ async def restarted(user: UserModel, service: str, pubkey: str) -> bool:
     return await _deliver(user, render.alert(user.lang, title, pubkey, AlertColor.ORANGE, name))
 
 
-async def bags_added(session: AsyncSession, pubkey: str, items: list[render.Bag]) -> None:
+async def bags(session: AsyncSession, pubkey: str, alert_type: AlertType, items: list[render.Bag]) -> None:
+    title_code = f"{alert_type.value}_title"
     owners = {item.bag_id: user_friendly(item.owner) for item in items if item.owner}
     sent = 0
-    for user in await _subscribers(session, pubkey, AlertType.BAG_ADDED):
+    for user in await _subscribers(session, pubkey, alert_type):
         name = user.provider_names.get(pubkey)
         address_names = user.address_names
+        title = t(user.lang, title_code)
         delivered = False
         for item in items:
             owner = owners.get(item.bag_id)
             trusted = owner in user.trusted_addresses
             owner_name = address_names.get(owner) if owner else None
-            message = render.bag(user.lang, user.explorer, pubkey, item, trusted, name, owner_name)
+            message = render.bag(user.lang, user.explorer, title, pubkey, item, trusted, name, owner_name)
             delivered |= await _deliver(user, message)
         sent += delivered
-    logger.info("bags added for %s: %d bags sent to %d users", pubkey[:8], len(items), sent)
+    logger.info("%s for %s: %d bags sent to %d users", title_code, pubkey[:8], len(items), sent)
 
 
-async def rewards_received(session: AsyncSession, pubkey: str, rewards: list[tuple[int, str]]) -> None:
-    for user in await _subscribers(session, pubkey, AlertType.REWARD_RECEIVED):
-        name = user.provider_names.get(pubkey)
-        await _deliver(user, render.rewards(user.lang, user.explorer, pubkey, rewards, name))
+async def channels(
+    session: AsyncSession,
+    title_code: str,
+    item: render.Bag,
+    members: list[str],
+    added: list[str],
+    removed: list[str],
+) -> None:
+    if item.owner is None:
+        return
+    for channel in await AlertChannelRepo(session).notifiable(user_friendly(item.owner)):
+        text = render.channel_bag(channel.lang, "tonviewer", t(channel.lang, title_code), item, members, added, removed)
+        result = await sender.send_message(channel.chat_id, text)
+        logger.info("channel %s for %s: %s", channel.chat_id, item.bag_id[:8], result)
 
 
-async def monthly_report(
+async def report(
     user: UserModel,
     pubkey: str,
+    title_code: str,
     earned_nano: int,
     growth_bytes: int | None,
+    bags_added_count: int,
     traffic_in_bytes: int,
     traffic_out_bytes: int,
 ) -> bool:
     name = user.provider_names.get(pubkey)
-    rich_message = render.monthly(
-        user.lang, pubkey, name, earned_nano, growth_bytes, traffic_in_bytes, traffic_out_bytes
+    text = render.report(
+        user.lang,
+        t(user.lang, title_code),
+        pubkey,
+        name,
+        earned_nano,
+        growth_bytes,
+        bags_added_count,
+        traffic_in_bytes,
+        traffic_out_bytes,
     )
-    return await _deliver_rich(user, rich_message)
+    return await _deliver(user, text)
 
 
 async def report_error(source: str, error: BaseException) -> None:
@@ -90,23 +112,14 @@ async def report_error(source: str, error: BaseException) -> None:
 
 
 async def _subscribers(session: AsyncSession, pubkey: str, alert_type: AlertType) -> list[UserModel]:
-    return [
-        row.UserModel
-        for row in await SubscriptionRepo(session).all_active()
-        if row.ProviderModel.pubkey == pubkey and alert_type.value in row.UserModel.alert_types
-    ]
+    users = await SubscriptionRepo(session).active_for(pubkey)
+    return [user for user in users if alert_type.value in user.alert_types]
 
 
 async def _deliver(user: UserModel, text: str) -> bool:
     if not user.reachable:
         return False
     return _apply_result(user, await sender.send_message(user.id, text))
-
-
-async def _deliver_rich(user: UserModel, rich_message: InputRichMessage) -> bool:
-    if not user.reachable:
-        return False
-    return _apply_result(user, await sender.send_rich_message(user.id, rich_message))
 
 
 def _apply_result(user: UserModel, result: str) -> bool:

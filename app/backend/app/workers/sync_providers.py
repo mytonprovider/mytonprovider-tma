@@ -10,10 +10,26 @@ from app.db.models import ProviderModel
 from app.db.repos import ProviderHistoryRepo, ProviderRepo
 from app.http.mytonprovider import mytonprovider
 from app.http.mytonprovider.models import Provider, Telemetry
-from app.utils import BITS_IN_MBIT, MIBIT_IN_MBIT, utcnow
+from app.utils import BITS_IN_MBIT, MIBIT_IN_MBIT, user_friendly, utcnow
 from app.workers._base import BaseWorker
 
 logger = logging.getLogger(__name__)
+
+# The catalogue quotes price per 200 GB per month, the contracts per MB per day.
+PRICE_MB_DAYS = 200 * 1024 * 30
+
+# History holds telemetry snapshots; terms and bookkeeping columns change on their own schedule.
+HISTORY_SKIP = (
+    "updated_at",
+    "balance_at",
+    "last_online_at",
+    "registered_at",
+    "listed",
+    "min_span",
+    "max_span",
+    "max_bag_size_bytes",
+    "min_rate_per_mb_day",
+)
 
 
 class SyncProvidersWorker(BaseWorker):
@@ -25,6 +41,7 @@ class SyncProvidersWorker(BaseWorker):
         async with session_factory() as session:
             provider_repo = ProviderRepo(session)
             prior = {model.pubkey: model for model in await provider_repo.all()}
+            listed = {provider.pubkey.lower() for provider in providers}
             provider_rows = []
             telemetry_rows = []
             for provider in providers:
@@ -34,13 +51,20 @@ class SyncProvidersWorker(BaseWorker):
                 previous = prior.get(pubkey)
                 if entry is not None and _is_fresh(entry, previous):
                     telemetry_rows.append(_telemetry_row(provider, entry, previous))
+            gone: list[str] = []
+            if providers:
+                gone = [pubkey for pubkey, model in prior.items() if pubkey not in listed and model.listed]
             if provider_rows:
                 await provider_repo.upsert(provider_rows, keys=("pubkey",))
             if telemetry_rows:
                 await provider_repo.upsert(telemetry_rows, keys=("pubkey",))
+            if gone:
+                await provider_repo.unlist(gone)
             await _snapshot_history(session)
             await session.commit()
-        logger.debug("synced %d providers, %d telemetry entries", len(providers), len(telemetry))
+        logger.debug(
+            "synced %d providers, %d telemetry entries, %d unlisted", len(providers), len(telemetry), len(gone)
+        )
 
 
 async def _collect_providers() -> list[Provider]:
@@ -61,13 +85,26 @@ async def _collect_telemetry() -> dict[str, Telemetry]:
 
 def _provider_row(provider: Provider) -> dict[str, Any]:
     last_online = provider.last_online_check_time
+    registered = provider.reg_time
     return {
         "pubkey": provider.pubkey.lower(),
-        "wallet_address": provider.address,
+        "wallet_address": user_friendly(provider.address),
         "net_capacity_mbps": _net_capacity_mbps(provider.telemetry),
         "last_online_at": datetime.fromtimestamp(last_online, tz=timezone.utc) if last_online else None,
+        "registered_at": datetime.fromtimestamp(registered, tz=timezone.utc) if registered else None,
+        "listed": True,
+        "min_span": provider.min_span,
+        "max_span": provider.max_span,
+        "max_bag_size_bytes": provider.max_bag_size_bytes,
+        "min_rate_per_mb_day": _min_rate_per_mb_day(provider.price),
         "updated_at": utcnow(),
     }
+
+
+def _min_rate_per_mb_day(price: int | None) -> int | None:
+    if not price:
+        return None
+    return price // PRICE_MB_DAYS
 
 
 def _telemetry_row(provider: Provider, telemetry: Telemetry, prior: ProviderModel | None) -> dict[str, Any]:
@@ -81,7 +118,7 @@ def _telemetry_row(provider: Provider, telemetry: Telemetry, prior: ProviderMode
     net_mbps = _net_mbps(telemetry, prior)
     return {
         "pubkey": provider.pubkey.lower(),
-        "wallet_address": provider.address,
+        "wallet_address": user_friendly(provider.address),
         "cpu_load_percent": _cpu_load_percent(telemetry.cpu_info),
         "ram_load_percent": _ram_load_percent(telemetry.ram),
         "disk_load_percent": _disk_load_percent(telemetry.disks_load_percent, telemetry.storage),
@@ -115,10 +152,7 @@ async def _snapshot_history(session: AsyncSession) -> None:
     archived_at = utcnow().replace(second=0, microsecond=0)
     rows = []
     for model in await provider_repo.all():
-        row = model.to_dict()
-        del row["updated_at"]
-        del row["balance_at"]
-        del row["last_online_at"]
+        row = {key: value for key, value in model.to_dict().items() if key not in HISTORY_SKIP}
         row["archived_at"] = archived_at
         rows.append(row)
     if rows:
@@ -160,6 +194,7 @@ def _net_capacity_mbps(telemetry: dict[str, Any] | None) -> float | None:
     return round(capacity / BITS_IN_MBIT, 2)
 
 
+# Measured against the provider's own speedtest, so a stale one gives over 100% - report nothing.
 def _net_load_pct(net_mbps: float | None, capacity_mbps: float | None) -> float | None:
     if net_mbps is None or not capacity_mbps:
         return None
@@ -183,6 +218,8 @@ def _disk_load_percent(disks: dict[str, Any] | None, storage: dict[str, Any] | N
     return round(slot, 2) if slot is not None else None
 
 
+# Upstream units differ per field: disk space arrives in GiB, RAM in decimal GB, traffic and
+# max_bag_size_bytes already in bytes. Past this module everything is bytes.
 def _disk_space(storage: dict[str, Any] | None) -> tuple[int | None, int | None]:
     provider = (storage or {}).get("provider") or {}
     used_gb = provider.get("used_provider_space")

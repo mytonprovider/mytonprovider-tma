@@ -1,25 +1,9 @@
 import { BITS_IN_MBIT, BYTES_IN_GIB, NANO, PING_MAX, diskSpeedToNum } from "@/lib/format";
 import { statusTone } from "@/lib/status";
-import type { CatalogFilters, FilterBounds, Provider, Range, Sort } from "./types";
+import { RANGE_KEYS, type CatalogFilters, type FilterBounds, type Provider, type Range, type RangeKey, type Sort } from "./types";
 
 const FREE_SPACE_BYTES = 100 * BYTES_IN_GIB;
 
-type RangeKey =
-  | "rating"
-  | "uptime"
-  | "price"
-  | "bag"
-  | "cores"
-  | "ram"
-  | "age"
-  | "minSpan"
-  | "maxSpan"
-  | "space"
-  | "diskRead"
-  | "diskWrite"
-  | "download"
-  | "upload"
-  | "ping";
 
 function toUnits(bytes: number | null, factor: number): number | null {
   return bytes === null ? null : bytes / factor;
@@ -48,7 +32,6 @@ const METRIC: Record<RangeKey, (p: Provider) => number | null> = {
   ping: (p) => (p.telemetry.ping !== null && p.telemetry.ping < PING_MAX ? p.telemetry.ping : null),
 };
 
-const RANGE_KEYS = Object.keys(METRIC) as RangeKey[];
 const FROM_MIN: Partial<Record<RangeKey, boolean>> = { rating: true, price: true, cores: true };
 
 function hasFreeSpace(p: Provider): boolean {
@@ -122,11 +105,11 @@ function sortProviders(list: Provider[], sort: Sort): Provider[] {
 }
 
 interface CatalogSelection {
-  favTab: boolean;
+  // null = whole catalog; a list restricts the tab to its own pubkeys
+  only: string[] | null;
   search: string;
   filters: CatalogFilters;
   sort: Sort;
-  favorites: string[];
   names: Record<string, string>;
   bounds: FilterBounds | null;
 }
@@ -136,7 +119,7 @@ export function selectCatalog(providers: Provider[], selection: CatalogSelection
   const found = (p: Provider) =>
     p.pubkey.toLowerCase().includes(search) || (selection.names[p.pubkey] ?? "").toLowerCase().includes(search);
   const filtered = providers.filter((p) => {
-    if (selection.favTab && !selection.favorites.includes(p.pubkey)) return false;
+    if (selection.only && !selection.only.includes(p.pubkey)) return false;
     if (search && !found(p)) return false;
     return matchesFilters(p, selection.filters, selection.bounds);
   });

@@ -13,6 +13,7 @@ import { cx } from "@/lib/cx";
 import { shorten } from "@/lib/format";
 import { useSettings } from "@/stores/settings";
 import { useNames } from "@/stores/names";
+import { useChannels } from "@/stores/channels";
 import { useTrusted } from "@/stores/trusted";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -26,6 +27,7 @@ export function Trusted() {
   const explorer = useSettings((s) => s.explorer);
   const addresses = useTrusted((s) => s.addresses);
   const names = useNames((s) => s.addresses);
+  const channels = useChannels((s) => s.byAddress);
 
   const [value, setValue] = useState("");
   const [invalid, setInvalid] = useState<Invalid>("none");
@@ -66,9 +68,9 @@ export function Trusted() {
           </button>
         }
       />
-      <div className={styles.error}>
-        {invalid === "format" ? t.trustedInvalid : invalid === "duplicate" ? t.trustedDuplicate : ""}
-      </div>
+      {invalid !== "none" && (
+        <div className={styles.error}>{invalid === "format" ? t.trustedInvalid : t.trustedDuplicate}</div>
+      )}
 
       {addresses.length === 0 ? (
         <Callout glyph="check" title={t.trustedEmptyTitle} desc={t.trustedEmptyDesc} />
@@ -87,6 +89,17 @@ export function Trusted() {
                   {names[address] || shorten(address, 14)}
                 </a>
                 <span className={styles.actions}>
+                  {channels[address] && (
+                    <a
+                      className={styles.channel}
+                      href={channels[address].invite_link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <Icon glyph="telegram" size={12} color="var(--ts-accent)" />
+                      {t.channel}
+                    </a>
+                  )}
                   <button
                     type="button"
                     aria-label={t.nameEdit}

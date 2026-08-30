@@ -1,2 +1,4 @@
-{% set tone = {0: "green", 301: "red", 302: "red", 401: "orange", 402: "orange", 403: "orange"} %}
-<span class="badge bg-{{ tone.get(data, "secondary") }}-lt">{{ data }}</span>
+<span class="text-nowrap">
+    <span class="badge bg-{{ field.tone(data) }}-lt">{{ field.word(data) }}</span>
+    {% if data is not none %}<span class="text-secondary small ms-1 font-variant-numeric-tabular">{{ data }}</span>{% endif %}
+</span>

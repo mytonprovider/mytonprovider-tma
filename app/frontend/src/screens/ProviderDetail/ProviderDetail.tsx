@@ -22,7 +22,7 @@ import type { Dict } from "@/i18n/types";
 import { toUserFriendly } from "@/lib/address";
 import { SC, rankColor, tint } from "@/lib/colors";
 import { cx } from "@/lib/cx";
-import { EMPTY, ago, amount, formatBytes, formatDiskSpeed, formatMbits, formatPing, formatPrice, formatPriceGram, formatSpace, formatTime, shorten, uptimeTone } from "@/lib/format";
+import { EMPTY, ago, amount, formatBytes, formatDiskSpeed, formatMbits, formatPing, formatPrice, formatPriceGram, formatSpacePair, formatTime, shorten, uptimeTone } from "@/lib/format";
 import { describeStatus } from "@/lib/status";
 import { useAuth } from "@/stores/auth";
 import { useCatalog } from "@/stores/catalog";
@@ -65,11 +65,11 @@ function hardwareFields(p: Provider, t: Dict): Field[] {
   const tel = p.telemetry;
   const ram =
     tel.usageRamBytes != null && tel.totalRamBytes != null
-      ? `${formatSpace(tel.usageRamBytes)} / ${formatSpace(tel.totalRamBytes)}`
+      ? formatSpacePair(tel.usageRamBytes, tel.totalRamBytes)
       : EMPTY;
   const space =
     tel.usedSpaceBytes != null && tel.totalSpaceBytes != null
-      ? `${formatSpace(tel.usedSpaceBytes)} / ${formatSpace(tel.totalSpaceBytes)}`
+      ? formatSpacePair(tel.usedSpaceBytes, tel.totalSpaceBytes)
       : EMPTY;
   return [
     { label: t.cpuName, value: tel.cpuName ?? EMPTY },
@@ -130,6 +130,7 @@ export function ProviderDetail() {
   const st = describeStatus(provider, t);
   const hasTelemetry = provider.hasTelemetry;
 
+  const checksOpen = isSubscribed && st.problems > 0;
   const subscribeLabel = isSubscribed ? t.unsubscribe : loggedIn ? t.subscribe : t.loginTg;
   const onSubscribe = () => {
     if (!loggedIn) return startLogin();
@@ -221,7 +222,7 @@ export function ProviderDetail() {
               {st.total > 0 && (
                 <div className={styles.checks}>
                   <span className={styles.checksLabel}>{t.filesAvail}</span>
-                  <span className={styles.passedBadge} style={{ background: tint(st.checksColor, 0.18), color: st.checksColor }}>
+                  <span className={styles.passedBadge} style={{ background: tint(SC.green, 0.18), color: SC.green }}>
                     {st.passed}
                   </span>
                   <span className={styles.slash}>/</span>
@@ -231,8 +232,23 @@ export function ProviderDetail() {
             </div>
           </div>
           {st.desc && (
-            <div className={styles.statusFooter}>
+            <div
+              className={cx(styles.statusFooter, checksOpen && styles.statusFooterActive)}
+              onClick={
+                checksOpen
+                  ? () => navigate(`/provider/${pubkey}/bags?state=check`, { state: { count: st.problems } })
+                  : undefined
+              }
+            >
               <span className={styles.statusDesc}>{st.desc}</span>
+              {checksOpen && (
+                <>
+                  <span className={styles.bagsBadge} style={{ background: tint(SC.red, 0.16), color: SC.red }}>
+                    {st.problems}
+                  </span>
+                  <Icon glyph="chevron" size={16} color="var(--ts-hint)" />
+                </>
+              )}
             </div>
           )}
         </div>

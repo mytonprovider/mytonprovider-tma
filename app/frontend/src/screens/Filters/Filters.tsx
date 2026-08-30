@@ -10,7 +10,7 @@ import { SectionHeader } from "@/components/SectionHeader";
 import { SegmentControl } from "@/components/SegmentControl";
 import { Toggle } from "@/components/Toggle";
 import { selectCatalog } from "@/data/query";
-import type { CatalogFilters, Provider, Range, SortField } from "@/data/types";
+import type { CatalogFilters, Provider, Range, RangeKey, SortField } from "@/data/types";
 import { useT } from "@/i18n";
 import type { DictStringKey } from "@/i18n/types";
 import { cx } from "@/lib/cx";
@@ -21,24 +21,7 @@ import { useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import styles from "./Filters.module.css";
 
-type SliderKey =
-  | "rating"
-  | "uptime"
-  | "price"
-  | "bag"
-  | "cores"
-  | "ram"
-  | "age"
-  | "minSpan"
-  | "maxSpan"
-  | "space"
-  | "diskRead"
-  | "diskWrite"
-  | "download"
-  | "upload"
-  | "ping";
-
-const SLIDER_META: Record<SliderKey, { labelKey: DictStringKey; dec: number; step: number; unit: string; unitKey?: DictStringKey }> = {
+const SLIDER_META: Record<RangeKey, { labelKey: DictStringKey; dec: number; step: number; unit: string; unitKey?: DictStringKey }> = {
   rating: { labelKey: "ratingF", dec: 2, step: 0.01, unit: "" },
   uptime: { labelKey: "uptimeF", dec: 2, step: 0.01, unit: "%" },
   price: { labelKey: "priceF", dec: 2, step: 0.01, unit: "GRAM" },
@@ -57,8 +40,8 @@ const SLIDER_META: Record<SliderKey, { labelKey: DictStringKey; dec: number; ste
 };
 
 const SORT_FIELDS: SortField[] = ["rating", "uptime", "price", "working_time"];
-const PROVIDER_SLIDERS: SliderKey[] = ["rating", "uptime", "price", "bag", "age", "minSpan", "maxSpan"];
-const HARDWARE_SLIDERS: SliderKey[] = ["cores", "ram", "space", "diskRead", "diskWrite", "download", "upload", "ping"];
+const PROVIDER_SLIDERS: RangeKey[] = ["rating", "uptime", "price", "bag", "age", "minSpan", "maxSpan"];
+const HARDWARE_SLIDERS: RangeKey[] = ["cores", "ram", "space", "diskRead", "diskWrite", "download", "upload", "ping"];
 
 function FilterSlider({
   sliderKey,
@@ -66,7 +49,7 @@ function FilterSlider({
   value,
   onChange,
 }: {
-  sliderKey: SliderKey;
+  sliderKey: RangeKey;
   bounds: Range;
   value: Range;
   onChange: (value: Range) => void;
@@ -166,12 +149,12 @@ export function Filters() {
   }, [providers]);
 
   const resultCount = useMemo(
-    () => selectCatalog(providers, { favTab: false, search, filters, sort, favorites: [], names, bounds }).length,
-    [providers, search, filters, sort, bounds],
+    () => selectCatalog(providers, { only: null, search, filters, sort, names, bounds }).length,
+    [providers, search, filters, sort, names, bounds],
   );
 
   const patch = (part: Partial<CatalogFilters>) => setFilters({ ...filters, ...part });
-  const setRange = (key: SliderKey) => (range: Range) => patch({ [key]: range });
+  const setRange = (key: RangeKey) => (range: Range) => patch({ [key]: range });
 
   const back = () => navigate(-1);
 

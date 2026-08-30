@@ -33,7 +33,7 @@ interface StatusReasonStatDto {
 export interface ProviderDto {
   status: number | null;
   location: LocationDto | null;
-  status_ratio: number;
+  status_ratio: number | null;
   pubkey: string;
   address: string;
   uptime: number;

@@ -26,6 +26,11 @@ ignore = [
     "B008",
     "PERF203",
 ]
+allowed-confusables = ["с"]
+
+# A self-check script reports through stdout; that is its whole interface.
+[tool.ruff.lint.per-file-ignores]
+"tests/*.py" = ["T201"]
 
 [tool.ruff.format]
 quote-style = "double"

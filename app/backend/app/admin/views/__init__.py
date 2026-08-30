@@ -1,15 +1,18 @@
 from starlette_admin.views import DropDown, Link
 
 from app.admin.views.alert import AlertView
-from app.admin.views.contract import ContractView
+from app.admin.views.alert_channel import AlertChannelView
+from app.admin.views.bag import BagView
+from app.admin.views.bag_slot import BagSlotView
 from app.admin.views.history import ProviderHistoryView
-from app.admin.views.home import HomeView
 from app.admin.views.provider import ProviderView
 from app.admin.views.subscription import SubscriptionView
 from app.admin.views.user import UserView
 from app.db.models import (
+    AlertChannelModel,
     AlertModel,
-    ContractModel,
+    BagModel,
+    BagSlotModel,
     ProviderHistoryModel,
     ProviderModel,
     SubscriptionModel,
@@ -17,6 +20,7 @@ from app.db.models import (
 )
 
 VIEWS = [
+    Link(menu_label="Home", icon="fa-solid fa-house", url="/admin/"),
     UserView(UserModel),
     DropDown(
         "Monitoring",
@@ -25,6 +29,7 @@ VIEWS = [
         views=[
             AlertView(AlertModel),
             SubscriptionView(SubscriptionModel),
+            AlertChannelView(AlertChannelModel),
         ],
     ),
     DropDown(
@@ -36,8 +41,16 @@ VIEWS = [
             ProviderHistoryView(ProviderHistoryModel, menu_label="History"),
         ],
     ),
-    ContractView(ContractModel),
-    Link(menu_label="Mini App", icon="fa-solid fa-mobile-screen-button", url="/"),
+    DropDown(
+        "Bags",
+        icon="fa-solid fa-cubes",
+        always_open=False,
+        views=[
+            BagView(BagModel, menu_label="List"),
+            BagSlotView(BagSlotModel, menu_label="Slots"),
+        ],
+    ),
+    Link(menu_label="App", icon="fa-solid fa-mobile-screen-button", url="/"),
 ]
 
-__all__ = ["VIEWS", "HomeView"]
+__all__ = ["VIEWS"]

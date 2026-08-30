@@ -70,6 +70,8 @@
             --tblr-primary-rgb: 0, 152, 234;
             --tblr-success: #2ec06c;
             --tblr-danger: #ff3b30;
+            --tblr-green: #2ec06c;
+            --tblr-red: #ff3b30;
             --tblr-border-radius: 11px;
             --tblr-font-sans-serif: -apple-system, "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
             --tblr-font-monospace: Menlo, "SF Mono", ui-monospace, monospace;
@@ -136,13 +138,222 @@
         .navbar {
             box-shadow: none;
         }
+        thead th {
+            background: var(--tblr-bg-surface-secondary);
+        }
         .brand-link,
         .brand-link:hover {
             text-decoration: none;
         }
-        .brand-link:focus:not(:focus-visible) {
+        .brand-link:focus:not(:focus-visible),
+        .copy-to-clipboard:focus:not(:focus-visible) {
             outline: none;
             box-shadow: none;
         }
+        /* Dashboard panels: shared by the home page and the owner page so both
+           read the same. Layout only - colours come from Tabler tokens above. */
+        .tiles {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 12px;
+        }
+        .cols {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-top: 12px;
+        }
+        /* Three panels side by side; below the breakpoint they stack like .cols does. */
+        .cols3 {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 12px;
+            margin-top: 12px;
+        }
+        .cols3 > .panel {
+            margin-top: 0;
+        }
+        .cols3 table {
+            table-layout: fixed;
+        }
+        .cols3 td:first-child {
+            width: 7.5rem;
+        }
+        .cols3 td:last-child {
+            width: 3.5rem;
+        }
+        /* One height for every row: a description that wraps onto a second line must not
+           break the rhythm, or the three panels stop reading as one. The badge and the
+           number then sit against the middle of that height, not against its first line -
+           the rule is scoped to these panels, the lists keep their top alignment. */
+        .cols3 tbody tr {
+            height: 2.75rem;
+        }
+        .cols3 tbody td {
+            vertical-align: middle;
+        }
+        .stack {
+            display: grid;
+            align-content: start;
+            gap: 12px;
+        }
+        .stack > .card {
+            overflow: hidden;
+        }
+        .panel {
+            margin-top: 12px;
+            overflow: hidden;
+        }
+        .panel-head {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1.25rem;
+            border-bottom: 1px solid var(--tblr-border-color);
+        }
+        .panel-foot {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1.25rem;
+            border-top: 1px solid var(--tblr-border-color);
+        }
+        /* A row number is two or three digits: the column takes what they need and no
+           more, or the table hands it a share of the free width and it drifts away
+           from the value beside it. */
+        .col-num,
+        td[data-column="number"],
+        th[data-column="number"] {
+            width: 1%;
+            white-space: nowrap;
+            text-align: left;
+        }
+        .panel-list {
+            overflow: auto;
+            /* The table stops where its content stops: "none" drops both the rubber-band
+               overscroll, which drags the table off and leaves the card showing through,
+               and the chaining that hands the rest of the swipe to the page. */
+            overscroll-behavior-x: none;
+        }
+        /* Vertically only the boxed panels get it. They are the ones that bounce, and
+           a panel with no height cap is not a scroller - blanking its overscroll would
+           cost the page a scroll it never had. */
+        .panel[style*="--panel-rows"] .panel-list {
+            max-height: calc(var(--panel-rows) * 33px + 33px);
+            overscroll-behavior-y: none;
+        }
+        /* An overlay bar is painted over the content and covers the right edge of a header that
+           now holds still. Giving it a width makes it a classic bar with a track of its own -
+           and unlike scrollbar-gutter, it takes that space only where there is something to
+           scroll, so the panels that fit keep their full width. */
+        .panel-list::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        .panel-list::-webkit-scrollbar-thumb {
+            background: var(--tblr-border-color);
+            border-radius: 4px;
+        }
+        .panel thead th {
+            /* table-sm leaves the header on the baseline, and the sort icon then hangs above
+               the label; the model lists centre theirs through table-vcenter. */
+            vertical-align: middle;
+            /* .panel-list is the scroller here, so the header holds on its own - the column
+               names have to stay while the rows run under them. */
+            position: sticky;
+            top: 0;
+            z-index: 2;
+            box-shadow: inset 0 -1px 0 var(--tblr-border-color);
+        }
+        .panel thead th[data-sort] {
+            cursor: pointer;
+            user-select: none;
+        }
+        @media (max-width: 768px) {
+            .tiles {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+            .cols,
+            .cols3 {
+                grid-template-columns: 1fr;
+            }
+            /* Two tiles per row: "0.0666 GRAM" has to fit on one line at 390px, and a
+               shortened address is wider still. */
+            .tiles .h1 {
+                font-size: 1.15rem;
+                white-space: nowrap;
+            }
+            .tiles .h1.font-monospace {
+                font-size: 0.95rem;
+            }
+        }
     </style>
+{% endblock %}
+{% block script %}
+    {{ super() }}
+    <script>
+        // Dashboard panels: a short list scrolls inside a box sized to whole rows, and
+        // any column marked sortable reorders it in place. Real paging lives in the
+        // model lists, so there is none here.
+        document.querySelectorAll(".panel").forEach(function (panel) {
+            var body = panel.querySelector("tbody");
+            var total = panel.querySelector("[data-panel-range]");
+
+            function rows() {
+                return Array.prototype.filter.call(body.rows, function (row) {
+                    return !row.classList.contains("panel-empty");
+                });
+            }
+
+            if (total) {
+                var count = rows().length;
+                var whole = parseInt((panel.dataset.panelTotal || "").replace(/\s/g, ""), 10);
+                var shown = whole && whole > count ? count + " of " + panel.dataset.panelTotal : String(count);
+                total.textContent = count ? shown + (count === 1 ? " entry" : " entries") : "";
+            }
+
+            // The same icons the model lists use, from the package theme - a panel and a
+            // list must not disagree about which way a column is sorted.
+            function mark(head, down) {
+                var icon = head.querySelector("i");
+                if (icon) icon.className = "fa-solid ms-1 " + (down ? "fa-sort-down" : "fa-sort-up");
+            }
+
+            function unmark(head) {
+                var icon = head.querySelector("i");
+                if (icon) icon.className = "fa-solid fa-sort ms-1 text-muted opacity-50";
+            }
+
+            // The server already ordered these rows; the arrow says so and the next
+            // click flips it, instead of the first click re-sorting what is sorted.
+            panel.querySelectorAll("thead th[data-state]").forEach(function (head) {
+                mark(head, head.dataset.state === "down");
+            });
+
+            panel.querySelectorAll("thead th[data-sort]").forEach(function (head) {
+                head.addEventListener("click", function () {
+                    var down = head.dataset.state !== "down";
+                    panel.querySelectorAll("thead th[data-sort]").forEach(function (other) {
+                        other.dataset.state = "";
+                        unmark(other);
+                    });
+                    head.dataset.state = down ? "down" : "up";
+                    mark(head, down);
+                    var column = Array.prototype.indexOf.call(head.parentNode.cells, head);
+                    var numeric = head.dataset.sort === "num";
+                    rows().sort(function (a, b) {
+                        var x = a.cells[column].dataset.value || a.cells[column].textContent.trim();
+                        var y = b.cells[column].dataset.value || b.cells[column].textContent.trim();
+                        var result = numeric ? parseFloat(x || 0) - parseFloat(y || 0) : x.localeCompare(y);
+                        return down ? -result : result;
+                    }).forEach(function (row) { body.appendChild(row); });
+                });
+            });
+        });
+        document.querySelectorAll("table th[data-column]").forEach(function (head) {
+            var table = head.closest("table");
+            var value = table.querySelector('td[data-column="' + head.dataset.column + '"] .text-end');
+            if (value) head.classList.add("text-end");
+        });
+    </script>
 {% endblock %}

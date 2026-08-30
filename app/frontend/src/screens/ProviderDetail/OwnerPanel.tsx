@@ -1,17 +1,20 @@
+import { Card } from "@/components/Card";
 import { Chart } from "@/components/Chart";
 import { Gauge } from "@/components/Gauge";
 import { SectionHeader } from "@/components/SectionHeader";
 import { SegmentControl } from "@/components/SegmentControl";
 import { OWNER_CHART_RANGES, adaptOwner, type ChartKey, type GaugeKey, type OwnerChartRange, type OwnerPeriod } from "@/data/owner";
 import { unsubscribeProvider } from "@/data/sync";
+import { EMPTY_BAGS, type BagFilter } from "@/data/backend";
 import type { Provider } from "@/data/types";
 import { prefetchOwner, useOwnerData } from "@/hooks/useOwnerData";
 import { useT } from "@/i18n";
 import type { Dict, DictStringKey } from "@/i18n/types";
 import { explorerAddressUrl } from "@/lib/address";
-import { SC, tint } from "@/lib/colors";
+import { tint } from "@/lib/colors";
 import { cx } from "@/lib/cx";
-import { JUST_NOW_SEC, formatTime } from "@/lib/format";
+import { EMPTY, JUST_NOW_SEC, formatTime } from "@/lib/format";
+import { filterColor } from "@/lib/status";
 import { Icon } from "@/components/Icon/Icon";
 import { useAlerts } from "@/stores/alerts";
 import { useAuth } from "@/stores/auth";
@@ -22,6 +25,19 @@ import { FieldCard } from "./FieldCard";
 import styles from "./ProviderDetail.module.css";
 
 type OwnerTab = "overview" | "earnings" | "charts";
+
+const BAG_ROWS: { state: BagFilter; label: DictStringKey }[] = [
+  { state: "all", label: "bagsAll" },
+  { state: "confirmed", label: "bagsConfirmed" },
+  { state: "unavailable", label: "bagsUnavailable" },
+  { state: "downloading", label: "bagsDownloading" },
+  { state: "not_paid", label: "bagsNotPaid" },
+  { state: "not_accepted", label: "bagsNotAccepted" },
+  { state: "not_confirmed", label: "bagsNotConfirmed" },
+  { state: "closed", label: "bagsClosed" },
+];
+
+const SKELETON_WIDTHS = [34, 72, 86, 76, 94, 112, 128, 104];
 
 const GAUGE_LABEL: Record<GaugeKey, DictStringKey> = {
   cpu_high: "chartCpu",
@@ -65,7 +81,7 @@ export function OwnerPanel({ provider, pubkey, children }: { provider: Provider;
   const explorer = useSettings((state) => state.explorer);
   const walletUrl = explorerAddressUrl(provider.address, explorer);
   const loading = loggedIn && !payload && !denied && !failed;
-  const problemBags = payload?.problem_bags ?? 0;
+  const bags = payload?.bags ?? EMPTY_BAGS;
 
   return (
     <>
@@ -94,9 +110,10 @@ export function OwnerPanel({ provider, pubkey, children }: { provider: Provider;
           </div>
           <div className={cx(styles.card, styles.storageCard)}>
             <div className={styles.storageTop}>
-              <span className={styles.subLabel}>{t.storageUsage}</span>
+              <span className={styles.subLabel}>{t.incomeMonth}</span>
               <span className={styles.storageValue}>
-                {owner.usedSpace} / {owner.totalSpace}
+                <span className={styles.valueNow}>{owner.income}</span>
+                {owner.incomeMax ? ` / ${owner.incomeMax}` : ""} GRAM
               </span>
             </div>
             <div className={styles.storageBarRow}>
@@ -110,21 +127,50 @@ export function OwnerPanel({ provider, pubkey, children }: { provider: Provider;
                   fontWeight: owner.spaceOver ? 600 : 500,
                 }}
               >
-                {owner.usedPct}%
+                {owner.spaceKnown ? `${owner.usedPct}%` : EMPTY}
+              </span>
+            </div>
+            <div className={styles.storageTop}>
+              <span className={styles.subLabel}>{t.storageUsage}</span>
+              <span className={styles.storageValue}>
+                {owner.spaceKnown ? (
+                  <>
+                    <span className={styles.valueNow}>{owner.usedSpace}</span>
+                    {` / ${owner.totalSpace} ${owner.spaceUnit}`}
+                  </>
+                ) : (
+                  t.unknown
+                )}
               </span>
             </div>
           </div>
-          <button type="button" className={styles.bagsBtn} onClick={() => navigate(`/provider/${pubkey}/bags`)}>
-            {t.bagsFailedTitle}
-            <span className={styles.bagsTail}>
-              {problemBags > 0 && (
-                <span className={styles.bagsBadge} style={{ background: tint(SC.red, 0.16), color: SC.red }}>
-                  {problemBags}
-                </span>
-              )}
-              <Icon glyph="chevron" size={16} color="var(--ts-hint)" />
-            </span>
-          </button>
+          <SectionHeader title={t.bagsTitle} />
+          <Card>
+            {BAG_ROWS.map(({ state, label }) => {
+              const count = bags[state];
+              const color = filterColor(state);
+              const open = () => navigate(`/provider/${pubkey}/bags?state=${state}`, { state: { count } });
+              return (
+                <div
+                  key={state}
+                  className={cx(styles.bagsRow, count > 0 && styles.bagsRowActive)}
+                  onClick={count > 0 ? open : undefined}
+                >
+                  <span className={styles.bagsLabel}>{t[label]}</span>
+                  <span className={styles.bagsTail}>
+                    {count > 0 && (
+                      <span className={styles.bagsBadge} style={{ background: tint(color, 0.16), color }}>
+                        {count}
+                      </span>
+                    )}
+                    <span className={count > 0 ? undefined : styles.bagsGhost}>
+                      <Icon glyph="chevron" size={16} color="var(--ts-hint)" />
+                    </span>
+                  </span>
+                </div>
+              );
+            })}
+          </Card>
           <div className={styles.ownerSegWrap}>
             <SegmentControl<OwnerTab>
               options={[
@@ -153,9 +199,14 @@ export function OwnerPanel({ provider, pubkey, children }: { provider: Provider;
             </div>
             <div className={styles.skelStorageBar} />
           </div>
-          <div className={styles.bagsBtn}>
-            <div className={styles.skelBagsLabel} />
-          </div>
+          <SectionHeader title={t.bagsTitle} />
+          <Card>
+            {BAG_ROWS.map(({ state }, index) => (
+              <div key={state} className={styles.bagsRow}>
+                <div className={styles.skelBagsLabel} style={{ width: SKELETON_WIDTHS[index] }} />
+              </div>
+            ))}
+          </Card>
           <div className={styles.ownerSegWrap}>
             <div className={styles.skelSeg} />
           </div>
@@ -171,6 +222,7 @@ export function OwnerPanel({ provider, pubkey, children }: { provider: Provider;
               <PeriodSegment value={period} onChange={setPeriod} t={t} />
             </div>
             <SummaryRow label={t.earnedLabel} value={owner.summary.earned} loading={refreshing} />
+            <SummaryRow label={t.bagsAddedLabel} value={owner.summary.bagsAdded} loading={refreshing} />
             <SummaryRow label={t.trafficIn} value={owner.summary.trafficIn} loading={refreshing} />
             <SummaryRow label={t.trafficOut} value={owner.summary.trafficOut} loading={refreshing} />
             <SummaryRow label={t.storageGrowth} value={owner.summary.storageGrowth} loading={refreshing} />

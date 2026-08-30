@@ -2,7 +2,7 @@ from collections.abc import Sequence
 from datetime import datetime, timedelta
 from typing import Any
 
-from sqlalchemy import BigInteger, Float, Integer, Row, bindparam, func, or_, select, text
+from sqlalchemy import BigInteger, Float, Integer, Row, bindparam, func, or_, select, text, update
 from sqlalchemy.orm import InstrumentedAttribute
 
 from app.db.models import ProviderHistoryModel, ProviderModel, UTCDateTime
@@ -10,6 +10,8 @@ from app.db.repos._base import BaseRepo
 from app.utils import utcnow
 
 BOUND_REACH = 0.03
+ROLLUP_HOURLY_AFTER = timedelta(days=1)
+ROLLUP_DAILY_AFTER = timedelta(days=30)
 
 
 class ProviderRepo(BaseRepo[ProviderModel]):
@@ -24,6 +26,10 @@ class ProviderRepo(BaseRepo[ProviderModel]):
         ).select_from(ProviderModel)
         result = await self.session.execute(stmt)
         return result.one()
+
+    async def unlist(self, pubkeys: list[str]) -> None:
+        stmt = update(ProviderModel).where(ProviderModel.pubkey.in_(pubkeys)).values(listed=False)
+        await self.session.execute(stmt)
 
     async def offline(self, fresh: datetime) -> Sequence[Row[Any]]:
         return await self._stale(ProviderModel.last_online_at, fresh)
@@ -41,7 +47,9 @@ class ProviderRepo(BaseRepo[ProviderModel]):
         stmt = (
             select(ProviderModel.pubkey, col.label("moment"))
             .where(or_(col.is_(None), col < fresh))
-            .order_by(col.desc())
+            # Longest silence first, and "never seen" last: on this stand 27 of 43 offline
+            # providers never came online at all, and on top they bury every real outage.
+            .order_by(col.is_(None), col)
         )
         result = await self.session.execute(stmt)
         return result.all()
@@ -50,10 +58,6 @@ class ProviderRepo(BaseRepo[ProviderModel]):
         stmt = select(col.label("githash"), ProviderModel.pubkey).where(col.is_not(None), col != "").order_by(col)
         result = await self.session.execute(stmt)
         return result.all()
-
-
-ROLLUP_HOURLY_AFTER = timedelta(days=1)
-ROLLUP_DAILY_AFTER = timedelta(days=30)
 
 
 class ProviderHistoryRepo(BaseRepo[ProviderHistoryModel]):

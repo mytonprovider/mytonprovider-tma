@@ -8,7 +8,8 @@ from starlette_admin.contrib.sqla import Admin
 
 from app import config
 from app.admin.auth import TelegramAuthProvider
-from app.admin.views import VIEWS, HomeView
+from app.admin.dashboards import HomeView, OwnerView
+from app.admin.views import VIEWS
 from app.api import auth
 from app.db import session_factory
 
@@ -17,7 +18,7 @@ admin = Admin(
     title="Admin Panel",
     favicon_url="/logo.svg",
     templates_dir=str(Path(__file__).parent / "templates"),
-    index_view=HomeView(menu_label="Home", icon="fa-solid fa-house", path="/"),
+    index_view=HomeView(path="/", add_to_menu=False),
     auth_provider=TelegramAuthProvider(),
     secret_key=config.JWT_SECRET,
     middlewares=[
@@ -32,6 +33,7 @@ admin = Admin(
 )
 for view in VIEWS:
     admin.add_view(view)
+admin.add_view(OwnerView(menu_label="Owner", path="/owner", route_name="owner", add_to_menu=False))
 
 
 def mount(app: FastAPI) -> None:

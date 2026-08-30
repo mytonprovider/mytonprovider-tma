@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import BigInteger, Float, Index, String
+from sqlalchemy import BigInteger, Boolean, Float, Index, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.models._base import BaseModel, UTCDateTime
@@ -45,9 +45,19 @@ class ProviderModel(BaseProviderModel):
     __tablename__ = "providers"
 
     pubkey: Mapped[str] = mapped_column(String(64), primary_key=True)
+
+    # Terms and flags live here, not in BaseProviderModel: everything declared there
+    # is snapshotted into providers_history on every telemetry batch.
+    listed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="1")
+
+    min_span: Mapped[int | None] = mapped_column(Integer)
+    max_span: Mapped[int | None] = mapped_column(Integer)
+    max_bag_size_bytes: Mapped[int | None] = mapped_column(BigInteger)
+    min_rate_per_mb_day: Mapped[int | None] = mapped_column(BigInteger)
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, onupdate=utcnow)
     balance_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
     last_online_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+    registered_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
 
 
 class ProviderHistoryModel(BaseProviderModel):

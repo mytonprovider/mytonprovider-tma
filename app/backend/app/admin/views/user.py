@@ -5,11 +5,12 @@ from starlette.requests import Request
 from starlette_admin import RequestAction
 from starlette_admin.actions import row_action
 from starlette_admin.exceptions import ActionFailed
-from starlette_admin.fields import HasOne, IntegerField, JSONField, StringField, TagsField, URLField
+from starlette_admin.fields import HasOne, IntegerField, JSONField, TagsField, URLField
 
 from app import config
-from app.admin.fields import LinkField, LinkTagsField, dt_field
-from app.admin.format import WALLETS_FORMATTER, address_page, provider_page, tg_page
+from app.admin.fields import LinkTagsField, StateField, dt_field, number_field
+from app.admin.format import WALLETS_FORMATTER
+from app.admin.refs import explorer_url, provider_url, username_ref
 from app.admin.views._base import BaseAdminView
 from app.utils import short_address, short_key, utcnow
 
@@ -20,6 +21,7 @@ class UserView(BaseAdminView):
     display_name = "User"
     icon = "fa-solid fa-users"
     fields: Sequence[Any] = (
+        number_field(),
         IntegerField("id", copy_to_clipboard=True),
         URLField(
             "photo_url",
@@ -27,13 +29,14 @@ class UserView(BaseAdminView):
             list_template="fields/list/avatar.html",
             null_template="fields/_avatar_null.html",
         ),
-        LinkField("username", url=tg_page),
+        username_ref(),
         "fullname",
+        StateField("state"),
         "lang",
         "theme",
         "explorer",
-        LinkTagsField("favorites", url=provider_page, fmt=short_key),
-        LinkTagsField("trusted_addresses", url=address_page, fmt=short_address, formatter=WALLETS_FORMATTER),
+        LinkTagsField("favorites", url=provider_url, fmt=short_key),
+        LinkTagsField("trusted_addresses", url=explorer_url, fmt=short_address, formatter=WALLETS_FORMATTER),
         JSONField("names", viewer_collapsed=False, viewer_with_quotes=False),
         TagsField(
             "alert_types",
@@ -44,13 +47,13 @@ class UserView(BaseAdminView):
         ),
         JSONField("alert_thresholds", viewer_collapsed=False, viewer_with_quotes=False),
         "alerts_enabled",
-        StringField("state", list_template="fields/list/state.html", detail_template="fields/list/state.html"),
-        dt_field("banned_at"),
+        dt_field("banned_at", "Banned"),
         HasOne("banned_by_user", key="users", label="Banned by"),
-        dt_field("last_seen_at"),
-        dt_field("created_at"),
-        dt_field("updated_at"),
+        dt_field("last_seen_at", "Last seen"),
+        dt_field("created_at", "Created"),
+        dt_field("updated_at", "Updated"),
     )
+    searchable_fields = ("id", "username", "fullname", "lang", "theme", "explorer", "state")
     exclude_fields_from_list = (
         "theme",
         "explorer",
@@ -74,7 +77,7 @@ class UserView(BaseAdminView):
         "updated_at",
     )
     exclude_fields_from_export = ("banned_by_user",)
-    fields_default_sort = (("last_seen_at", True), ("id", False))
+    fields_default_sort = (("number", False),)
 
     def can_create(self, request: Request) -> bool:
         return False

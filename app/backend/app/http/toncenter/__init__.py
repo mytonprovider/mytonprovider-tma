@@ -1,5 +1,5 @@
-from .client import Toncenter
+from .client import INDEX_LAG, Toncenter
 
-__all__ = ["toncenter"]
+__all__ = ["INDEX_LAG", "toncenter"]
 
 toncenter = Toncenter()

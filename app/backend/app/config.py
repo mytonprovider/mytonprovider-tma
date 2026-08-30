@@ -41,4 +41,6 @@ MYTONPROVIDER_API_URL = "https://mytonprovider.org/api/v1"
 MYTONPROVIDER_API_KEY = env.str("MYTONPROVIDER_API_KEY")
 MYTONPROVIDER_API_RPS = env.float("MYTONPROVIDER_API_RPS")
 
+# The salt is public and dictated by upstream: providers hash their password the
+# same way, so this string cannot be changed to something stronger on our side.
 TELEMETRY_PASS_SALT = f"{MYTONPROVIDER_API_URL}/providers"

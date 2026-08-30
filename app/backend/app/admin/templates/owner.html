@@ -1,0 +1,113 @@
+{% extends "dashboard.html" %}
+{% block content %}
+    {% if not address %}
+        <div class="card">
+            <div class="card-body text-secondary">Open this page from a bag owner link.</div>
+        </div>
+    {% else %}
+        <div class="tiles">
+            {% call tile("Owner", wallet, mono=true) %}
+                <span class="d-inline-flex align-items-center gap-2">
+                    <span title="{{ address }}">{{ label }}</span>
+                    {{ copy_button(address) }}
+                    <a class="fs-4" href="{{ explorer }}" target="_blank" title="open in explorer">
+                        <i class="fa-solid fa-arrow-up-right-from-square fa-2xs"></i>
+                    </a>
+                </span>
+            {% endcall %}
+            {% call tile("Cost", "per day") %}{{ per_day }}{% endcall %}
+            {% call tile("Providers", slots ~ " slots") %}{{ providers_total }}{% endcall %}
+            {% call tile("Bags", stored ~ (" · " ~ closed_bags ~ " closed" if closed_bags else "")) %}
+                {{ bags_total }}
+            {% endcall %}
+        </div>
+        {% set download_columns = [
+            {"label": "Bag ID", "sort": "text"},
+            {"label": "Contract", "sort": "text"},
+            {"label": "Provider", "sort": "text"},
+            {"label": "Size", "cls": "text-end", "sort": "num"},
+            {"label": "Started", "cls": "text-end", "sort": "num"},
+        ] %}
+        {% call panel("Downloading", download_columns, count=downloading_total, rows=10, wide=true,
+                      sorted_by=("Started", "down")) %}
+            {% for row in downloading %}
+                <tr>
+                    {{ key_cell(row.label, row.href, row.key, row.viewer) }}
+                    {{ key_cell(row.contract, row.contract_href, row.contract_key, row.explorer) }}
+                    {{ key_cell(row.provider, row.provider_href, row.provider_key) }}
+                    {{ value_cell(row.size, row.size_raw, external=row.gateway) }}
+                    {{ value_cell(row.started, row.started_raw) }}
+                </tr>
+            {% else %}
+                {{ empty_row(download_columns | length, "no downloads") }}
+            {% endfor %}
+        {% endcall %}
+        {# Three panels read by importance: bags, then their slots, then what the upstream
+           check answered. Every state is listed even at zero - the list doubles as the
+           glossary - and the order is meaning, not size, so the headers do not sort. #}
+        <div class="cols3">
+            {% set state_columns = [{"label": "State"}, {"label": "Means"}, {"label": "Count", "cls": "text-end"}] %}
+            {% call panel("Bags by state", state_columns, count=bags_total, plain=true) %}
+                {% for item in bag_states %}{{ state_row(item) }}{% endfor %}
+            {% endcall %}
+            {% call panel("Slots by state", state_columns, count=slots, plain=true) %}
+                {% for item in slot_states %}{{ state_row(item) }}{% endfor %}
+            {% endcall %}
+            {% call panel("Slots by check", state_columns, count=slots, plain=true) %}
+                {% for item in checks %}{{ state_row(item) }}{% endfor %}
+            {% endcall %}
+        </div>
+        {% set provider_columns = [
+            {"label": "Provider", "sort": "text"},
+            {"label": "In catalogue", "cls": "text-center", "sort": "text"},
+            {"label": "Bags", "cls": "text-end", "sort": "num"},
+        ] + counted + [
+            {"label": "Stored", "cls": "text-end", "sort": "num"},
+            {"label": "Last proof", "cls": "text-end", "sort": "num"},
+            {"label": "Cost / day", "cls": "text-end", "sort": "num"},
+        ] %}
+        {% call panel("Providers", provider_columns, count=providers_total, rows=10, wide=true, numbered=true,
+                      sorted_by=("#", "up")) %}
+            {% for row in providers %}
+                <tr>
+                    {{ number_cell(row.number) }}
+                    {{ key_cell(row.label, row.href, row.key, row.viewer) }}
+                    {{ flag_cell(row.listed) }}
+                    {% for value, href, sort in row.counts %}{{ count_cell(value, href, sort) }}{% endfor %}
+                    {{ value_cell(row.stored, row.size) }}
+                    {{ value_cell(row.proof, row.proof_age) }}
+                    {{ value_cell(row.per_day, row.cost) }}
+                </tr>
+            {% else %}
+                {{ empty_row(provider_columns | length) }}
+            {% endfor %}
+        {% endcall %}
+        {% set bag_columns = [
+            {"label": "Bag ID", "sort": "text"},
+            {"label": "Contract", "sort": "text"},
+            {"label": "State", "sort": "text"},
+            {"label": "Confirmed", "cls": "text-end"},
+            {"label": "Size", "cls": "text-end", "sort": "num"},
+            {"label": "Balance", "cls": "text-end", "sort": "num"},
+            {"label": "Cost / day", "cls": "text-end", "sort": "num"},
+        ] %}
+        {% call panel("Bags", bag_columns, count=bags_total, link=bags_href,
+                      link_text="open list", rows=10, wide=true, numbered=true,
+                      sorted_by=("#", "down")) %}
+            {% for row in bags %}
+                <tr>
+                    {{ number_cell(row.number) }}
+                    {{ key_cell(row.label, row.href, row.key, row.viewer) }}
+                    {{ key_cell(row.contract, row.contract_href, row.contract_key, row.explorer) }}
+                    {{ state_cell(row.state, row.state_href) }}
+                    <td class="text-end text-nowrap" title="confirmed of hired">{{ row.providers }}</td>
+                    {{ value_cell(row.size, row.size_raw, external=row.gateway) }}
+                    {{ value_cell(row.balance, row.balance_raw) }}
+                    {{ value_cell(row.per_day, row.cost) }}
+                </tr>
+            {% else %}
+                {{ empty_row(bag_columns | length) }}
+            {% endfor %}
+        {% endcall %}
+    {% endif %}
+{% endblock %}

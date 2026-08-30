@@ -1,8 +1,11 @@
+import type { BagFilter, BagState } from "@/data/backend";
 import type { Provider } from "@/data/types";
 import type { Dict } from "@/i18n/types";
-import { SC, type StatusTone } from "./colors";
+import { ACCENT, SC, type StatusTone } from "./colors";
 
-const UNAVAILABLE = new Set([101, 102, 103, 201, 202]);
+// Upstream check codes grouped by what they mean, tone following the weight; grey means
+// only that the check never ran. 301 also fires on version skew between checker and node.
+const UNAVAILABLE = new Set([101, 102, 103, 104, 105, 201, 202, 203]);
 const NOT_STORED = new Set([301, 302]);
 const NO_PROOF = new Set([401, 402, 403]);
 
@@ -25,11 +28,41 @@ export function statusTone(p: Provider): StatusTone {
 export function reasonTone(reason: number): StatusTone {
   if (NOT_STORED.has(reason)) return "red";
   if (NO_PROOF.has(reason)) return "orange";
+  if (UNAVAILABLE.has(reason)) return "yellow";
   return "gray";
 }
 
 export function reasonText(reason: number | null, t: Dict): string {
+  if (reason === null) return t.reason.none;
   return (t.reason as Record<string, string | undefined>)[String(reason)] ?? t.unknownReason(reason);
+}
+
+// Typed by BagState: a state added on the backend stops the build here instead of
+// silently rendering as a grey "confirmed" bag.
+const STATES: Record<BagState, { tone: StatusTone; label: keyof Dict }> = {
+  confirmed: { tone: "green", label: "bagStateConfirmed" },
+  downloading: { tone: "yellow", label: "bagStateDownloading" },
+  not_accepted: { tone: "gray", label: "bagStateNotAccepted" },
+  unavailable: { tone: "orange", label: "bagStateUnavailable" },
+  not_confirmed: { tone: "red", label: "bagStateNotConfirmed" },
+  not_paid: { tone: "orange", label: "bagStateNotPaid" },
+  closed: { tone: "gray", label: "bagStateClosed" },
+  partial: { tone: "yellow", label: "bagStatePartial" },
+  not_hired: { tone: "gray", label: "bagStateNotHired" },
+};
+
+export function stateTone(state: BagState): StatusTone {
+  return STATES[state].tone;
+}
+
+export function stateText(state: BagState, t: Dict): string {
+  return t[STATES[state].label] as string;
+}
+
+// Slices are not states: "check" is grey because it mixes every chain state there is.
+export function filterColor(filter: BagFilter): string {
+  if (filter === "all") return ACCENT;
+  return filter === "check" ? SC.gray : SC[stateTone(filter)];
 }
 
 function ratioTone(ratio: number): StatusTone {
@@ -70,9 +103,7 @@ function resolveStatus(p: Provider): ResolvedStatus {
       sorted[0].count < total * 0.8 && sorted.length > 1 ? sorted[1].reason : sorted[0].reason;
   }
 
-  const problems = p.statusReasons
-    .filter((r) => NOT_STORED.has(r.reason) || NO_PROOF.has(r.reason))
-    .reduce((sum, r) => sum + r.count, 0);
+  const problems = p.statusReasons.filter((r) => r.reason !== 0).reduce((sum, r) => sum + r.count, 0);
 
   return { tone, labelKey, ratio, passed: valid, total, dominantReason, problems };
 }
@@ -80,13 +111,13 @@ function resolveStatus(p: Provider): ResolvedStatus {
 interface StatusView {
   tone: StatusTone;
   color: string;
-  checksColor: string;
   label: string;
   desc: string;
   ratio: number;
   hasRatio: boolean;
   passed: number;
   total: number;
+  problems: number;
 }
 
 export function describeStatus(p: Provider, t: Dict): StatusView {
@@ -95,12 +126,12 @@ export function describeStatus(p: Provider, t: Dict): StatusView {
   return {
     tone: s.tone,
     color: SC[s.tone],
-    checksColor: SC[ratioTone(s.ratio)],
     label: t.status[s.labelKey],
     desc,
     ratio: s.ratio,
     hasRatio: p.status === 0 && s.total > 0,
     passed: s.passed,
     total: s.total,
+    problems: s.problems,
   };
 }

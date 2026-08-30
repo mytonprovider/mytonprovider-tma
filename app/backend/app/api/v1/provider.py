@@ -9,9 +9,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.alerts import disk_space_percent, evaluate, net_load_percent
 from app.api.auth import current_user_id, deny_banned
+from app.bags import CHECK, SlotState, income_ceiling
 from app.db import get_session
 from app.db.models import ProviderModel, UserModel
-from app.db.repos import ContractRepo, ProviderHistoryRepo, ProviderRepo, SubscriptionRepo, UserRepo
+from app.db.repos import (
+    BagSlotRepo,
+    ProviderHistoryRepo,
+    ProviderRepo,
+    SubscriptionRepo,
+    UserRepo,
+)
 from app.utils import BITS_IN_BYTE, BITS_IN_MBIT, previous_month, utcnow
 
 router = APIRouter(prefix="/provider")
@@ -51,6 +58,7 @@ class LoadOut(BaseModel):
 
 class SummaryOut(BaseModel):
     earned: int | None
+    bags_added: int
     traffic_in: int | None
     traffic_out: int | None
     storage_growth_bytes: int | None
@@ -62,17 +70,31 @@ class AllTimeOut(BaseModel):
     stored_bytes: int | None
 
 
+class BagCounters(BaseModel):
+    all: int
+    confirmed: int
+    closed: int
+    not_paid: int
+    not_accepted: int
+    unavailable: int
+    not_confirmed: int
+    downloading: int
+    check: int
+
+
 class ProviderResponse(BaseModel):
     balance: int | None
     balance_updated_at: int | None
     earned: int | None
+    income: int
+    income_max: int | None
     wallet_address: str | None
     telemetry_updated_at: int | None
     load: LoadOut
     triggers: list[TriggerOut]
     monthly: SummaryOut
     all_time: AllTimeOut
-    problem_bags: int
+    bags: BagCounters
 
 
 class ChartPoint(BaseModel):
@@ -97,22 +119,28 @@ class ChartResponse(BaseModel):
     points: list[ChartPoint]
 
 
-class ProblemBagOut(BaseModel):
-    bag_id: str
+class BagOut(BaseModel):
+    bag_id: str | None
     address: str
     owner_address: str | None
     size: int | None
-    reason: int
-    reason_at: int
+    state: str
+    balance: int | None
+    rate_per_mb_day: int | None
+    payment_max_span: int | None
+    hired_at: int | None
+    last_proof_at: int | None
+    reason: int | None
+    reason_at: int | None
 
 
-class ProblemBagsResponse(BaseModel):
-    items: list[ProblemBagOut]
+class BagsResponse(BaseModel):
+    items: list[BagOut]
     total: int
 
 
 BAGS_PAGE_SIZE = 8
-BAGS_FRESH = timedelta(hours=24)
+STATE_PATTERN = f"^(all|{CHECK}|{'|'.join(state.value for state in SlotState)})$"
 
 
 @dataclass
@@ -147,17 +175,33 @@ async def period_summary(
     end: datetime | None = None,
 ) -> SummaryOut:
     first, last = await ProviderHistoryRepo(session).bounds(pubkey, start, end)
+    bags_added = await BagSlotRepo(session).added_between(pubkey, start, end or utcnow())
     if first is None or last is None or first.archived_at == last.archived_at:
-        return SummaryOut(earned=None, traffic_in=None, traffic_out=None, storage_growth_bytes=None)
+        return SummaryOut(
+            earned=None,
+            bags_added=bags_added,
+            traffic_in=None,
+            traffic_out=None,
+            storage_growth_bytes=None,
+        )
     growth = None
     if first.disk_used is not None and last.disk_used is not None:
         growth = last.disk_used - first.disk_used
     return SummaryOut(
         earned=max(0, last.earned - first.earned),
+        bags_added=bags_added,
         traffic_in=max(0, last.traffic_in - first.traffic_in),
         traffic_out=max(0, last.traffic_out - first.traffic_out),
         storage_growth_bytes=growth,
     )
+
+
+# The ceiling needs the disk, and the disk comes from telemetry the provider may not be
+# sending: without it there is no free space to price and the screen says so.
+def _income_max(row: ProviderModel, income: int) -> int | None:
+    if row.disk_total is None or row.min_rate_per_mb_day is None:
+        return None
+    return income_ceiling(income, max(0, row.disk_total - (row.disk_used or 0)), row.min_rate_per_mb_day)
 
 
 @router.get("/{pubkey}")
@@ -168,13 +212,17 @@ async def provider(
     row = access.provider
     month_start, month_end = previous_month()
     monthly = await period_summary(session, row.pubkey, month_start, month_end)
-    problem_bags = await ContractRepo(session).problem_count(row.pubkey, utcnow() - BAGS_FRESH)
+    slot_repo = BagSlotRepo(session)
+    counters = await slot_repo.counters(row.pubkey)
+    income = await slot_repo.monthly_income(row.pubkey)
     telemetry_updated_at = int(row.telemetry_at.timestamp()) if row.telemetry_at else None
     balance_updated_at = int(row.balance_at.timestamp()) if row.balance_at else None
     return ProviderResponse(
         balance=row.balance,
         balance_updated_at=balance_updated_at,
         earned=row.earned,
+        income=income,
+        income_max=_income_max(row, income),
         wallet_address=row.wallet_address,
         telemetry_updated_at=telemetry_updated_at,
         load=LoadOut(
@@ -195,7 +243,17 @@ async def provider(
             traffic=row.traffic_in + row.traffic_out,
             stored_bytes=row.disk_used,
         ),
-        problem_bags=problem_bags,
+        bags=BagCounters(
+            all=counters.all,
+            confirmed=counters.confirmed,
+            closed=counters.closed,
+            not_paid=counters.not_paid,
+            not_accepted=counters.not_accepted,
+            unavailable=counters.unavailable,
+            not_confirmed=counters.not_confirmed,
+            downloading=counters.downloading,
+            check=counters.check,
+        ),
     )
 
 
@@ -273,24 +331,30 @@ def _rounded(value: float | None) -> float | None:
     return round(value, 1) if value is not None else None
 
 
-@router.get("/{pubkey}/bags/problems")
-async def provider_bag_problems(
+@router.get("/{pubkey}/bags")
+async def provider_bags(
+    state: str = Query("all", pattern=STATE_PATTERN),
+    q: str | None = Query(None, max_length=64),
     offset: int = Query(0, ge=0),
     access: OwnerAccess = Depends(require_access),
     session: AsyncSession = Depends(get_session),
-) -> ProblemBagsResponse:
-    since = utcnow() - BAGS_FRESH
-    rows, total = await ContractRepo(session).problems(access.provider.pubkey, since, BAGS_PAGE_SIZE, offset)
+) -> BagsResponse:
+    rows, total = await BagSlotRepo(session).slice(access.provider.pubkey, state, BAGS_PAGE_SIZE, offset, q)
     items = [
-        ProblemBagOut(
+        BagOut(
             bag_id=row.bag_id,
             address=row.address,
             owner_address=row.owner_address,
             size=row.size,
+            state=row.state,
+            balance=row.balance,
+            rate_per_mb_day=row.rate_per_mb_day,
+            payment_max_span=row.payment_max_span,
+            hired_at=int(row.created_at.timestamp()) if row.created_at is not None else None,
+            last_proof_at=int(row.last_proof_at.timestamp()) if row.last_proof_at is not None else None,
             reason=row.reason,
-            reason_at=int(row.reason_at.timestamp()),
+            reason_at=int(row.reason_at.timestamp()) if row.reason_at is not None else None,
         )
         for row in rows
-        if row.reason is not None and row.reason_at is not None
     ]
-    return ProblemBagsResponse(items=items, total=total)
+    return BagsResponse(items=items, total=total)

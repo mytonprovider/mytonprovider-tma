@@ -1,0 +1,132 @@
+{# One table panel for every dashboard list: card head, scrollable table, client-side
+   sorting. Rows are supplied by the caller, so a cell can be anything - a link,
+   a badge, a copy button. #}
+{% from "fields/_copy_button.html" import copy_button %}
+{# `sorted_by` names the column the rows already arrive in ("#" for the ordinal) and
+   its direction, so the header carries the arrow from the first paint instead of
+   pretending the list is unsorted. #}
+{% macro panel(title, columns, count="", hint="", link=None, link_text="", rows=0, wide=false, numbered=false,
+               sorted_by=None, plain=false) %}
+    <div class="card panel{{ ' panel-wide' if wide else '' }}" data-panel-total="{{ count }}"
+         {% if rows and count != 0 %}style="--panel-rows: {{ rows }}"{% endif %}>
+        <div class="panel-head">
+            <span class="subheader">{{ title }}</span>
+            {% if count != "" %}<span class="text-secondary">{{ count }}</span>{% endif %}
+            {% if hint %}<span class="ms-auto small text-secondary">{{ hint }}</span>{% endif %}
+        </div>
+        <div class="panel-list">
+            <table class="table table-sm card-table table-hover mb-0">
+                {% if columns %}
+                    <thead>
+                        <tr>
+                            {% if numbered %}
+                                <th class="col-num" data-sort="num"
+                                    {% if sorted_by and sorted_by[0] == "#" %}data-state="{{ sorted_by[1] }}"{% endif %}>#<i class="fa-solid fa-sort ms-1 text-muted opacity-50"></i></th>
+                            {% endif %}
+                            {% for column in columns %}
+                                <th class="{{ column.cls | default('') }}"
+                                    {% if column.sort %}data-sort="{{ column.sort }}"{% endif %}
+                                    {% if sorted_by and sorted_by[0] == column.label %}data-state="{{ sorted_by[1] }}"{% endif %}>{{ column.label }}{% if column.sort %}<i class="fa-solid fa-sort ms-1 text-muted opacity-50"></i>{% endif %}</th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                {% endif %}
+                <tbody>{{ caller() }}</tbody>
+            </table>
+        </div>
+        {# A glossary panel has no range to report: its rows are the states themselves,
+           and "8 of 52" would read as "showing 8 bags of 52". #}
+        <div class="panel-foot{{ ' d-none' if plain else '' }}">
+            <span class="small text-secondary" data-panel-range></span>
+            {% if link %}
+                <a class="btn btn-sm ms-auto" href="{{ link }}">{{ link_text }}</a>
+            {% endif %}
+        </div>
+    </div>
+{% endmacro %}
+{# One KPI card. The value comes from the caller so it can carry markup - a fraction,
+   a link, a monospace key. Tiles are figures, not buttons: no card-wide link. #}
+{% macro tile(title, note="", mono=false, tone="secondary") %}
+    <div class="card">
+        <div class="card-body">
+            <div class="subheader">{{ title }}</div>
+            <div class="h1 mb-0{{ ' font-monospace text-truncate' if mono else '' }}">{{ caller() }}</div>
+            {% if note %}<div class="small text-{{ tone }}">{{ note }}</div>{% endif %}
+        </div>
+    </div>
+{% endmacro %}
+{# "no data" is honest for a list that came back empty, but useless for a panel that
+   asks a question - there the empty row is the answer and should say it. #}
+{% macro empty_row(columns, text="no data") %}
+    <tr class="panel-empty"><td colspan="{{ columns }}" class="text-center text-secondary py-3">{{ text }}</td></tr>
+{% endmacro %}
+{# A key or address: the value goes deeper into the panel, the explorer hangs on the
+   icon beside it - the same rule the field templates follow. #}
+{% macro key_cell(label, href, value, external="") %}
+    <td class="text-nowrap">
+        <span class="d-inline-flex align-items-center gap-2">
+            <a class="font-monospace" href="{{ href }}" title="{{ value }}">{{ label }}</a>
+            {{ copy_button(value) }}
+            {% if external %}
+                <a href="{{ external }}" target="_blank" title="open in explorer">
+                    <i class="fa-solid fa-arrow-up-right-from-square fa-xs"></i>
+                </a>
+            {% endif %}
+        </span>
+    </td>
+{% endmacro %}
+{# A counter leads to the rows it counts, exactly like the columns in the full list. #}
+{# Counters arrive already spaced ("12 845"), so zero is tested as text: a number
+   filter would read the separator as the end of the value and drop every link. #}
+{# Counters arrive already spaced ("12 845"), so the raw number rides along for the
+   sort and zero is tested as text - a number filter would stop at the separator. #}
+{% macro count_cell(value, href="", sort=None) %}
+    <td class="text-end text-nowrap" data-value="{{ value if sort is none else sort }}">
+        {%- if href and value | string != "0" -%}<a href="{{ href }}">{{ value }}</a>{%- else -%}{{ value }}{%- endif -%}
+    </td>
+{% endmacro %}
+{# Anything formatted for reading ("10.44 MB", "98d 22h ago") sorts by the raw value.
+   An outward link hangs on the icon beside it, the way it does in the lists. #}
+{% macro value_cell(value, sort=None, cls="text-end text-nowrap", external="") %}
+    <td class="{{ cls }}" data-value="{{ value if sort is none else sort }}">
+        {%- if external -%}
+            <span class="d-inline-flex align-items-center gap-2">
+                {{ value }}
+                <a href="{{ external }}" target="_blank" title="open in gateway">
+                    <i class="fa-solid fa-arrow-up-right-from-square fa-xs"></i>
+                </a>
+            </span>
+        {%- else -%}{{ value }}{%- endif -%}
+    </td>
+{% endmacro %}
+{# The badge opens the bags in the same state, the way a counter opens its rows. #}
+{% macro state_cell(state, href="") %}
+    <td>
+        {%- if href -%}<a class="badge bg-{{ state[1] }}-lt" href="{{ href }}">{{ state[0] }}</a>
+        {%- else -%}<span class="badge bg-{{ state[1] }}-lt">{{ state[0] }}</span>{%- endif -%}
+    </td>
+{% endmacro %}
+{# The same pair the model lists draw for a boolean, from the package theme. #}
+{% macro flag_cell(value) %}
+    <td class="text-center">
+        {%- if value -%}<span class="text-success"><i class="fa-solid fa-check-circle fa-lg"></i></span>
+        {%- else -%}<span class="text-danger"><i class="fa-solid fa-times-circle fa-lg"></i></span>{%- endif -%}
+    </td>
+{% endmacro %}
+{# Word, what it means, how many - the row of the three state panels. The number leads
+   to its own rows, and a zero stays a zero: there is nothing to open. #}
+{% macro state_row(item) %}
+    <tr>
+        <td class="text-nowrap">
+            <span class="badge bg-{{ item.state[1] }}-lt">{{ item.state[0] }}</span>
+        </td>
+        <td class="text-secondary small">{{ item.what }}</td>
+        <td class="text-end text-nowrap">
+            {%- if item.href %}<a href="{{ item.href }}">{{ item.count }}</a>
+            {%- else %}<span class="text-secondary">{{ item.count }}</span>{% endif -%}
+        </td>
+    </tr>
+{% endmacro %}
+{% macro number_cell(value) %}
+    <td class="col-num text-secondary" data-value="{{ value }}">{{ value }}</td>
+{% endmacro %}

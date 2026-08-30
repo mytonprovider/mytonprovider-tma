@@ -1,217 +1,88 @@
-{% extends "layout.html" %}
-{% block head_css %}
-    {{ super() }}
-    <style>
-        .home-tiles {
-            display: grid;
-            grid-template-columns: repeat(4, minmax(0, 1fr));
-            gap: 12px;
-        }
-        .home-cols {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
-            margin-top: 12px;
-        }
-        .home-stack {
-            display: grid;
-            align-content: start;
-            gap: 12px;
-        }
-        .home-stack > .card {
-            overflow: hidden;
-        }
-        a.home-tile {
-            color: inherit;
-            text-decoration: none;
-        }
-        a.home-tile:hover {
-            border-color: var(--tblr-primary);
-        }
-        .home-head {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 0.5rem 1.25rem;
-            border-bottom: 1px solid var(--tblr-border-color);
-        }
-        .page-header {
-            display: none;
-        }
-        .home-list {
-            max-height: 12rem;
-            overflow: auto;
-        }
-        .home-wide {
-            margin-top: 12px;
-            overflow: hidden;
-        }
-        .home-wide .home-list {
-            max-height: 23rem;
-        }
-        .home-wide td:nth-child(2) {
-            width: 5rem;
-        }
-        .home-wide td:nth-child(3) {
-            width: 8rem;
-        }
-        @media (max-width: 768px) {
-            .home-tiles {
-                grid-template-columns: repeat(2, minmax(0, 1fr));
-            }
-            .home-cols {
-                grid-template-columns: 1fr;
-            }
-        }
-    </style>
-{% endblock %}
-{% from "fields/_copy_button.html" import copy_button %}
-{% block script %}
-    {{ super() }}
-    <script src="{{ static_url(request, 'js/utils.js', v=1) }}"></script>
-{% endblock %}
+{% extends "dashboard.html" %}
 {% block content %}
-    <div class="home-tiles">
-        <a class="card home-tile" href="providers/list">
-            <div class="card-body">
-                <div class="subheader">Providers</div>
-                <div class="h1 mb-0">{{ providers.total }}</div>
-                <div class="small {{ 'text-success' if providers.online else 'text-danger' }}">{{ providers.online }} online</div>
-            </div>
-        </a>
-        <a class="card home-tile" href="providers/list?filter=telemetry_at__is_not_null">
-            <div class="card-body">
-                <div class="subheader">Telemetry</div>
-                <div class="h1 mb-0">{{ providers.telemetry }}<span class="text-secondary fs-3">/{{ providers.total }}</span></div>
-                <div class="small text-secondary">{{ providers.passworded }} passworded</div>
-            </div>
-        </a>
-        <a class="card home-tile" href="users/list">
-            <div class="card-body">
-                <div class="subheader">Users</div>
-                <div class="h1 mb-0">{{ users.total }}</div>
-                <div class="small {{ 'text-danger' if users.banned else 'text-secondary' }}">{{ users.kicked }} kicked · {{ users.banned }} banned</div>
-            </div>
-        </a>
-        <a class="card home-tile" href="subscriptions/list">
-            <div class="card-body">
-                <div class="subheader">Subscribers</div>
-                <div class="h1 mb-0">{{ subscribers }}<span class="text-secondary fs-3">/{{ users.total }}</span></div>
-                <div class="small text-secondary">follow a provider</div>
-            </div>
-        </a>
-        <a class="card home-tile" href="contracts/list">
-            <div class="card-body">
-                <div class="subheader">Contracts</div>
-                <div class="h1 mb-0">{{ contracts_total }}</div>
-                <div class="small text-secondary">{{ bags }} bags · {{ stored }}</div>
-            </div>
-        </a>
-        <a class="card home-tile" href="providers-history/list">
-            <div class="card-body">
-                <div class="subheader">Snapshots</div>
-                <div class="h1 mb-0">{{ snapshots }}</div>
-                <div class="small text-secondary">history rows</div>
-            </div>
-        </a>
-        <div class="card">
-            <div class="card-body">
-                <div class="subheader">Database</div>
-                <div class="h1 mb-0">{{ db_size }}</div>
-                <div class="small text-secondary">sqlite + wal</div>
-            </div>
-        </div>
-        <div class="card">
-            <div class="card-body">
-                <div class="subheader">Build</div>
-                <div class="h1 mb-0 font-monospace">
-                    {% if commit_url %}<a href="{{ commit_url }}" target="_blank">{{ commit }}</a>{% else %}{{ commit or "local" }}{% endif %}
-                </div>
-                <div class="small text-secondary text-truncate" title="up since {{ started }}">{{ branch }}{% if owner %} · {{ owner }}{% endif %}</div>
-            </div>
-        </div>
+    <div class="tiles">
+        {% call tile("Providers", providers.online ~ " online", tone="success" if providers.online else "danger") %}
+            {{ providers.total }}
+        {% endcall %}
+        {% call tile("Telemetry", providers.passworded ~ " passworded") %}
+            {{ providers.telemetry }}<span class="text-secondary fs-3">/{{ providers.total }}</span>
+        {% endcall %}
+        {% call tile("Users", users.kicked ~ " kicked · " ~ users.banned ~ " banned",
+                     tone="danger" if users.banned else "secondary") %}
+            {{ users.total }}
+        {% endcall %}
+        {% call tile("Subscribers", "follow a provider") %}
+            {{ subscribers }}<span class="text-secondary fs-3">/{{ users.total }}</span>
+        {% endcall %}
+        {% call tile("Bags", stored) %}{{ bags_total }}{% endcall %}
+        {% call tile("Snapshots", "history rows") %}{{ snapshots }}{% endcall %}
+        {% call tile("Database", "sqlite + wal") %}{{ db_size }}{% endcall %}
+        {% call tile("Build", branch, mono=false) %}
+            <span class="font-monospace">
+                {% if commit_url %}<a href="{{ commit_url }}" target="_blank">{{ commit }}</a>{% else %}{{ commit or "local" }}{% endif %}
+            </span>
+        {% endcall %}
     </div>
-    <div class="home-cols">
-        <div class="home-stack">
+    {% set owner_columns = [
+        {"label": "Owner", "sort": "text"},
+        {"label": "Bags", "cls": "text-end", "sort": "num"},
+        {"label": "Slots", "cls": "text-end", "sort": "num"},
+        {"label": "Problems", "cls": "text-end", "sort": "num"},
+        {"label": "Closed", "cls": "text-end", "sort": "num"},
+        {"label": "Stored", "cls": "text-end", "sort": "num"},
+        {"label": "On contracts", "cls": "text-end", "sort": "num"},
+        {"label": "Cost / day", "cls": "text-end", "sort": "num"},
+    ] %}
+    {% call panel("Bag owners", owner_columns, rows=10, wide=true, numbered=true,
+                  sorted_by=("Stored", "down")) %}
+        {% for row in owners %}
+            <tr>
+                {{ number_cell(row.number) }}
+                {{ key_cell(row.label, row.href, row.address, row.external) }}
+                {{ count_cell(row.bags, row.bags_href, row.bags_raw) }}
+                {{ count_cell(row.slots, row.slots_href, row.slots_raw) }}
+                {{ count_cell(row.problems, row.problems_href, row.problems_raw) }}
+                {{ count_cell(row.closed, row.closed_href, row.closed_raw) }}
+                {{ value_cell(row.size, row.raw) }}
+                {{ value_cell(row.balance, row.balance_raw) }}
+                {{ value_cell(row.per_day, row.cost) }}
+            </tr>
+        {% else %}
+            {{ empty_row(owner_columns | length) }}
+        {% endfor %}
+    {% endcall %}
+    <div class="cols">
+        <div class="stack">
             {% for block in versions %}
-                <div class="card">
-                    <div class="home-head">
-                        <span class="subheader">{{ block.title }}</span>
-                        {% if block.rows %}{{ copy_button(block.rows | map(attribute=0) | join("\n")) }}{% endif %}
-                        <span class="ms-auto small text-secondary font-monospace">{{ block.scent }}</span>
-                    </div>
-                    <div class="home-list">
-                        <table class="table table-sm card-table table-hover mb-0">
-                            {% for githash, count in block.rows %}
-                            <tr>
-                                <td>
-                                    <span class="d-inline-flex align-items-center gap-2">
-                                        <a class="font-monospace" href="providers/list?filter={{ block.column }}__eq={{ githash }}" title="{{ githash }}">{{ githash[:7] }}</a>
-                                        {{ copy_button(githash) }}
-                                    </span>
-                                </td>
-                                <td class="text-end">{{ count }}</td>
-                            </tr>
-                            {% else %}
-                                <tr><td class="text-secondary">no data</td></tr>
-                            {% endfor %}
-                        </table>
-                    </div>
-                </div>
+                {% set version_columns = [{"label": "Version"}, {"label": "Providers", "cls": "text-end", "sort": "num"}] %}
+                {% call panel(block.title, version_columns, hint=block.scent, rows=5, sorted_by=("Providers", "down")) %}
+                    {% for row in block.rows %}
+                        <tr>
+                            {{ key_cell(row.label, row.href, row.key) }}
+                            {{ count_cell(row.count, row.href) }}
+                        </tr>
+                    {% else %}
+                        {{ empty_row(version_columns | length) }}
+                    {% endfor %}
+                {% endcall %}
             {% endfor %}
         </div>
-        <div class="home-stack">
+        <div class="stack">
             {% for title, hint, rows in (("Offline", "last online", offline), ("No telemetry", "last telemetry", silent)) %}
-                <div class="card">
-                    <div class="home-head">
-                        <span class="subheader">{{ title }}</span>
-                        <span class="badge bg-{{ 'red' if rows else 'green' }}-lt">{{ rows | length }}</span>
-                        {% if rows %}{{ copy_button(rows | map(attribute="pubkey") | join("\n")) }}{% endif %}
-                        <span class="ms-auto small text-secondary">{{ hint }}</span>
-                    </div>
-                    <div class="home-list">
-                        <table class="table table-sm card-table table-hover mb-0">
-                            {% for row in rows %}
-                                <tr>
-                                    <td>
-                                        <span class="d-inline-flex align-items-center gap-2">
-                                            <a class="font-monospace" href="providers/detail?pk={{ row.pubkey }}">{{ row.label }}</a>
-                                            {{ copy_button(row.pubkey) }}
-                                        </span>
-                                    </td>
-                                    <td class="text-end"><span class="badge bg-{{ row.tone }}-lt" title="{{ row.at }}">{{ row.age }}</span></td>
-                                </tr>
-                            {% else %}
-                                <tr><td class="text-success">all good</td></tr>
-                            {% endfor %}
-                        </table>
-                    </div>
-                </div>
+                {% set stale_columns = [{"label": "Provider"}, {"label": hint | capitalize, "cls": "text-end", "sort": "num"}] %}
+                {% call panel(title, stale_columns, hint=hint, rows=5, sorted_by=(hint | capitalize, "down")) %}
+                    {% for row in rows %}
+                        <tr>
+                            {{ key_cell(row.label, row.href, row.pubkey) }}
+                            <td class="text-end" data-value="{{ row.seconds }}">
+                                <span class="badge bg-{{ row.tone }}-lt" title="{{ row.at }}">{{ row.age }}</span>
+                            </td>
+                        </tr>
+                    {% else %}
+                        {{ empty_row(stale_columns | length, "none") }}
+                    {% endfor %}
+                {% endcall %}
             {% endfor %}
-        </div>
-    </div>
-    <div class="card home-wide">
-        <div class="home-head">
-            <span class="subheader">Top uploaders</span>
-            {% if owners %}{{ copy_button(owners | map(attribute="address") | join("\n")) }}{% endif %}
-        </div>
-        <div class="home-list">
-            <table class="table table-sm card-table table-hover mb-0">
-                {% for row in owners %}
-                    <tr>
-                        <td>
-                            <span class="d-inline-flex align-items-center gap-2">
-                                <a class="font-monospace" href="{{ row.url }}" target="_blank" title="{{ row.address }}">{{ row.label }}</a>
-                                {{ copy_button(row.address) }}
-                            </span>
-                        </td>
-                        <td class="text-end"><a href="contracts/list?filter=owner_address__eq={{ row.raw_address }}">{{ row.bags }}</a></td>
-                        <td class="text-end"><span title="{{ row.raw }}">{{ row.size }}</span></td>
-                    </tr>
-                {% else %}
-                    <tr><td class="text-secondary">no data</td></tr>
-                {% endfor %}
-            </table>
         </div>
     </div>
 {% endblock %}

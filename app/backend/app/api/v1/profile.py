@@ -21,7 +21,7 @@ from app.api.auth import (
 )
 from app.db import get_session
 from app.db.models import SubscriptionModel, UserModel
-from app.db.repos import ProviderRepo, SubscriptionRepo, UserRepo
+from app.db.repos import AlertChannelRepo, ProviderRepo, SubscriptionRepo, UserRepo
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +53,12 @@ class SubscriptionOut(BaseModel):
     alerts_enabled: bool
 
 
+class ChannelOut(BaseModel):
+    address: str
+    title: str | None
+    invite_link: str
+
+
 class ProfileResponse(BaseModel):
     is_admin: bool
     language_code: str
@@ -63,6 +69,7 @@ class ProfileResponse(BaseModel):
     names: Names
     alerts: AlertsSettings
     subscriptions: list[SubscriptionOut]
+    channels: list[ChannelOut]
 
 
 class ProfilePatch(BaseModel):
@@ -129,6 +136,7 @@ def subscription_out(subscription: SubscriptionModel) -> SubscriptionOut:
 
 async def profile_response(session: AsyncSession, user: UserModel) -> ProfileResponse:
     subscriptions = await SubscriptionRepo(session).all_by_user(user.id)
+    channels = await AlertChannelRepo(session).invitable(list(user.trusted_addresses), user.lang)
     return ProfileResponse(
         is_admin=user.id in config.ADMIN_IDS,
         language_code=user.lang,
@@ -143,6 +151,11 @@ async def profile_response(session: AsyncSession, user: UserModel) -> ProfileRes
             thresholds=dict(user.alert_thresholds),
         ),
         subscriptions=[subscription_out(subscription) for subscription in subscriptions],
+        channels=[
+            ChannelOut(address=channel.address, title=channel.title, invite_link=channel.invite_link)
+            for channel in channels
+            if channel.address and channel.invite_link
+        ],
     )
 
 

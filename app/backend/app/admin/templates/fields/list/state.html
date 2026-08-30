@@ -1,2 +1,5 @@
-{% set tone = {"member": "green", "kicked": "secondary"} %}
-<span class="badge bg-{{ tone.get(data, "orange") }}-lt">{{ data }}</span>
+{% if request.state.action == "LIST" %}
+    <a class="badge bg-{{ field.tone(data) }}-lt" href="?filter=state__eq={{ data }}">{{ data }}</a>
+{% else %}
+    <span class="badge bg-{{ field.tone(data) }}-lt">{{ data }}</span>
+{% endif %}

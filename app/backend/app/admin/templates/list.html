@@ -1,0 +1,9 @@
+{% extends "@core/list.html" %}
+{% set page_label = view.page_label or view.menu_label %}
+{% block page_title %}<h1>{{ page_label }}</h1>{% endblock %}
+{% block breadcrumbs %}
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for(__name__ ~ ':index') }}">{{ _("Admin") }}</a></li>
+        <li class="breadcrumb-item active">{{ page_label }}</li>
+    </ol>
+{% endblock %}

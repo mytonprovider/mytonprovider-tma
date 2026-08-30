@@ -50,39 +50,36 @@
   opacity: 0.6;
 }
 
-.phead {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  padding: 12px 15px 8px;
+.title {
+  composes: title from "../ProviderBags/ProviderBags.module.css";
+}
+
+.sub {
+  composes: sub from "../ProviderBags/ProviderBags.module.css";
+}
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.stateCard {
+  margin-top: 14px;
+}
+
+.skTile {
+  composes: tile from "../../components/MetricTile.module.css";
+}
+
+.den {
+  color: var(--ts-hint);
 }
 
 .pk {
   composes: mono from "../../styles/list.module.css";
-}
-
-.pstat {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  padding: 0 15px 12px;
   font-size: 13px;
-}
-
-.plabel {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.badge {
-  flex: none;
-  padding: 1px 6px;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
 }
 
 .skel {
@@ -116,15 +113,15 @@
   height: 15px;
 }
 
-.skPk {
-  composes: skel;
-  width: 54%;
-  height: 16px;
-}
-
-.skStatusBar {
+.skTitle {
   composes: skel;
   width: 42%;
-  height: 14px;
+  height: 15px;
+}
+
+.skSub {
+  composes: skel;
+  width: 54%;
+  height: 13px;
 }
 

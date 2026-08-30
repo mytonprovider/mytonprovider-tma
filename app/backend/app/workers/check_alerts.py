@@ -7,9 +7,10 @@ from app.alerts import DEFAULT_THRESHOLDS, RULES, AlertType, BaseRule
 from app.bot import notify
 from app.db import session_factory
 from app.db.models import ProviderHistoryModel, ProviderModel, UserModel
-from app.db.repos import AlertRepo, ProviderHistoryRepo, SubscriptionRepo
+from app.db.repos import AlertRepo, ProviderHistoryRepo, StateRepo, SubscriptionRepo
 from app.utils import utcnow
 from app.workers._base import BaseWorker
+from app.workers.sync_providers import SyncProvidersWorker
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +32,17 @@ class CheckAlertsWorker(BaseWorker):
         self.notified_restart = set()
 
     async def run(self) -> None:
+        # Every rule judges telemetry, and after a downtime longer than LOST_AGE the age
+        # rules - debounceless on purpose - would call everyone offline on our own silence.
+        if not SyncProvidersWorker.last_success:
+            return
         async with session_factory() as session:
+            # States age with the clock, so they are refreshed on the same minute tick
+            # that decides whether to alert.
+            slots, bags = await StateRepo(session).refresh()
+            await session.commit()
+            if slots or bags:
+                logger.debug("states moved: %s slots, %s bags", slots, bags)
             self.session = session
             self.alert_repo = AlertRepo(session)
             self.subscription_repo = SubscriptionRepo(session)

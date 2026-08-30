@@ -6,7 +6,7 @@ import { ScreenHeader } from "@/components/ScreenHeader";
 import { SectionHeader } from "@/components/SectionHeader";
 import { ThresholdSlider } from "@/components/ThresholdSlider";
 import { Toggle } from "@/components/Toggle";
-import { ALERT_TYPES, DEFAULT_THRESHOLD } from "@/data/alerts";
+import { ALERT_GROUPS, defaultThreshold } from "@/data/alerts";
 import { saveAlerts, setAlertThreshold, setAlertsEnabled, toggleAlertType } from "@/data/sync";
 import { useT } from "@/i18n";
 import { cx } from "@/lib/cx";
@@ -45,31 +45,39 @@ export function Alerts() {
       </div>
 
       <div className={cx(styles.typesWrap, !enabled && styles.typesWrapOff)}>
-        <SectionHeader title={t.alertTypesTitle} />
-        <Card>
-          {ALERT_TYPES.map((type, index) => {
-            const on = types[type.key];
-            return (
-              <div key={type.key} className={cx(styles.typeRow, index > 0 && styles.typeRowDivider)}>
-                <div className={styles.typeToggleRow}>
-                  <div className={styles.typeMain}>
-                    <div className={styles.typeLabel}>{t.alertNames[type.key]}</div>
-                    <div className={styles.typeDesc}>{t.alertDescs[type.key]}</div>
+        {ALERT_GROUPS.map((group) => (
+          <div key={group.key}>
+            <SectionHeader title={t.alertGroups[group.key]} />
+            <Card>
+              {group.types.map((type, index) => {
+                const on = types[type.key];
+                return (
+                  <div key={type.key} className={cx(styles.typeRow, index > 0 && styles.typeRowDivider)}>
+                    <div className={styles.typeToggleRow}>
+                      <div className={styles.typeMain}>
+                        <div className={styles.typeLabel}>{t.alertNames[type.key]}</div>
+                        <div className={styles.typeDesc}>{t.alertDescs[type.key]}</div>
+                      </div>
+                      <Toggle
+                        checked={on}
+                        onChange={() => toggleAlertType(type.key)}
+                        ariaLabel={t.alertNames[type.key]}
+                      />
+                    </div>
+                    {type.threshold && (
+                      <div className={cx(styles.sliderWrap, !on && styles.sliderWrapOff)}>
+                        <ThresholdSlider
+                          value={thresholds[type.key] ?? defaultThreshold(type.key)}
+                          onChange={(value) => setAlertThreshold(type.key, value)}
+                        />
+                      </div>
+                    )}
                   </div>
-                  <Toggle checked={on} onChange={() => toggleAlertType(type.key)} ariaLabel={t.alertNames[type.key]} />
-                </div>
-                {type.threshold && (
-                  <div className={cx(styles.sliderWrap, !on && styles.sliderWrapOff)}>
-                    <ThresholdSlider
-                      value={thresholds[type.key] ?? DEFAULT_THRESHOLD}
-                      onChange={(value) => setAlertThreshold(type.key, value)}
-                    />
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </Card>
+                );
+              })}
+            </Card>
+          </div>
+        ))}
       </div>
     </Screen>
   );

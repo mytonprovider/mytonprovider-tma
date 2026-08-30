@@ -1,1 +1,8 @@
-<a href="https://mytonstorage.org/api/v1/gateway/{{ row.bag_id }}" target="_blank" class="text-nowrap" title="{{ data }}">{{ field.fmt(data) }}</a>
+<span class="d-inline-flex align-items-center gap-2 text-nowrap">
+    <span class="d-block text-end" title="{{ data }}">{{ field.fmt(data) }}</span>
+    {% if row.bag_id and field.external %}
+        <a href="{{ field.external(row.bag_id) }}" target="_blank" title="open in gateway">
+            <i class="fa-solid fa-arrow-up-right-from-square fa-xs"></i>
+        </a>
+    {% endif %}
+</span>

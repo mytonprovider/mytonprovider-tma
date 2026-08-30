@@ -7,15 +7,17 @@ export function CopyRow({
   label,
   copyValue,
   divider,
+  compact,
   children,
 }: {
   label: string;
   copyValue: string | null;
   divider?: boolean;
+  compact?: boolean;
   children: ReactNode;
 }) {
   return (
-    <div className={cx(styles.copyRow, divider && styles.copyRowDivider)}>
+    <div className={cx(compact ? styles.copyRowCompact : styles.copyRow, divider && styles.copyRowDivider)}>
       <span className={styles.copyLabel}>{label}</span>
       <span className={styles.copyValue}>
         {children}

@@ -1,24 +1,23 @@
 import { Card } from "@/components/Card";
-import { CopyButton } from "@/components/CopyButton";
 import { CopyRow } from "@/components/CopyRow";
 import { Callout } from "@/components/Callout";
 import { Field } from "@/components/Field";
 import { ExplorerAddressRow } from "@/components/ExplorerAddressRow";
 import { FieldRow } from "@/components/FieldRow";
 import { Icon } from "@/components/Icon/Icon";
+import { MetricTile } from "@/components/MetricTile";
 import { Screen } from "@/components/Screen";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { SectionHeader } from "@/components/SectionHeader";
-import { StatusDot } from "@/components/StatusDot";
-import { BackendError, backend, type BagPayload } from "@/data/backend";
-import { type StorageContract, readStorageContract } from "@/data/toncenter";
+import { BackendError, backend, type BagPayload, type BagProvider } from "@/data/backend";
+import type { Provider } from "@/data/types";
 import { useT } from "@/i18n";
 import type { Dict } from "@/i18n/types";
 import { ADDRESS_RE, RAW_RE, toUserFriendly } from "@/lib/address";
-import { SC, tint } from "@/lib/colors";
-import { EMPTY, ago, formatBytes, formatPriceGram, formatTime, shorten } from "@/lib/format";
+import { SC } from "@/lib/colors";
+import { EMPTY, ago, formatBytes, formatCount, formatPriceGram, formatTime, shorten } from "@/lib/format";
 import { bagGatewayUrl } from "@/lib/gateway";
-import { reasonText, reasonTone } from "@/lib/status";
+import { reasonText, reasonTone, stateText, stateTone } from "@/lib/status";
 import { useCatalog } from "@/stores/catalog";
 import { useNames } from "@/stores/names";
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
@@ -26,6 +25,8 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import styles from "./BagExplorer.module.css";
 
 const REPORT_BOT = "https://t.me/bagidreport_bot";
+// Catalogue quotes per 200 GB per month, the contract per MB per day - same divisor as the backend.
+const PRICE_MB_DAYS = 200 * 1024 * 30;
 const BAG_ID_RE = /^[0-9a-fA-F]{64}$/;
 
 type QueryKind = "bag" | "address";
@@ -36,40 +37,47 @@ function classify(query: string): QueryKind | null {
   return null;
 }
 
-interface Resolved {
-  address: string;
-  owner: string | null;
-  reasons: Map<string, number | null>;
-  chain: StorageContract;
-}
-
-async function resolveBag(query: string, kind: QueryKind): Promise<Resolved | null> {
+async function resolveBag(query: string, kind: QueryKind): Promise<BagPayload | null> {
   const search = kind === "bag" ? query.toLowerCase() : query;
-  let db: BagPayload | null = null;
   try {
-    db = await backend.bag(search);
+    return await backend.bag(search);
   } catch (error) {
-    if (!(error instanceof BackendError && error.status === 404)) throw error;
+    if (error instanceof BackendError && error.status === 404) return null;
+    throw error;
   }
-  if (kind === "bag" && !db) return null;
-  const address = kind === "bag" && db ? db.contract_address : search;
-  const chain = await readStorageContract(address);
-  if (!chain) return null;
-  const reasons = new Map((db?.providers ?? []).map((p) => [p.pubkey, p.reason]));
-  return { address, owner: db?.owner_address ?? null, reasons, chain };
 }
 
-function providerStatus(reason: number | null, t: Dict): { color: string; label: string; code: number | null } {
-  if (reason === null) return { color: SC.gray, label: t.notTracked, code: null };
-  if (reason === 0) return { color: SC.green, label: t.status.stable, code: null };
-  return { color: SC[reasonTone(reason)], label: reasonText(reason, t), code: reason };
+// A running contract was signed on older terms, so only a hire that never happened is flagged.
+function mismatch(prov: BagProvider, listed: Provider | undefined): { span: boolean; rate: boolean } {
+  if (prov.state !== "not_accepted" || !listed) return { span: false, rate: false };
+  return {
+    span:
+      prov.payment_max_span !== null &&
+      (prov.payment_max_span < listed.minSpan || prov.payment_max_span > listed.maxSpan),
+    rate: prov.rate_per_mb_day !== null && prov.rate_per_mb_day < Math.round(listed.price / PRICE_MB_DAYS),
+  };
 }
 
-function nextProofValue(lastProof: number, maxSpan: number, nowSec: number, t: Dict): ReactNode {
-  if (lastProof <= 0) return EMPTY;
+// Same thresholds the provider card uses for its own ratio.
+function ratioTone(passed: number, total: number): "green" | "yellow" | "red" {
+  const ratio = total > 0 ? passed / total : 0;
+  return ratio >= 0.99 ? "green" : ratio >= 0.8 ? "yellow" : "red";
+}
+
+// The window closing is not the alarm - the ladder gives proofs OVERDUE_FACTOR of slack
+// because they reach the chain late, so the row turns red with the state, not before it.
+function nextProofValue(
+  lastProof: number | null,
+  maxSpan: number | null,
+  nowSec: number,
+  t: Dict,
+  notConfirmed: boolean,
+): ReactNode {
+  if (!lastProof || !maxSpan) return EMPTY;
   const deadline = lastProof + maxSpan;
   if (deadline <= nowSec) {
-    return <span style={{ color: SC.red }}>{ago(nowSec - deadline, t)}</span>;
+    const late = ago(nowSec - deadline, t);
+    return notConfirmed ? <span style={{ color: SC.red }}>{late}</span> : late;
   }
   return t.inFuture(formatTime(deadline - nowSec, t, true));
 }
@@ -86,7 +94,7 @@ export function BagExplorer() {
 
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<Status>("idle");
-  const [result, setResult] = useState<Resolved | null>(null);
+  const [result, setResult] = useState<BagPayload | null>(null);
   const reqRef = useRef(0);
 
   useEffect(() => {
@@ -127,6 +135,11 @@ export function BagExplorer() {
 
   const header = <ScreenHeader title={t.explorerTitle} onBack={() => navigate(-1)} />;
   const nowSec = Math.floor(Date.now() / 1000);
+  const slots = result?.providers ?? [];
+  const confirmed = slots.filter((p) => p.state === "confirmed").length;
+  const passed = slots.filter((p) => p.reason === 0).length;
+  // Upstream checks the whole network in one batch, so the age is one per bag, not per slot.
+  const checkedAt = slots.reduce<number | null>((max, p) => (p.reason_at ?? 0) > (max ?? 0) ? p.reason_at : max, null);
 
   return (
     <Screen header={header}>
@@ -172,85 +185,157 @@ export function BagExplorer() {
 
       {status === "ready" && result && (
         <>
+          <Card className={styles.stateCard}>
+            <div className={styles.title} style={{ color: SC[stateTone(result.state)] }}>
+              {stateText(result.state, t)}
+            </div>
+          </Card>
+          <div className={styles.tiles}>
+            <MetricTile
+              value={
+                <>
+                  {confirmed}
+                  <span className={styles.den}>
+                    <span className={styles.slash}>/</span>
+                    {result.providers.length}
+                  </span>
+                </>
+              }
+              label={t.bagProofs}
+              valueColor={SC[ratioTone(confirmed, result.providers.length)]}
+            />
+            <MetricTile
+              value={
+                checkedAt === null ? (
+                  EMPTY
+                ) : (
+                  <>
+                    {passed}
+                    <span className={styles.den}>
+                      <span className={styles.slash}>/</span>
+                      {result.providers.length}
+                    </span>
+                  </>
+                )
+              }
+              label={checkedAt === null ? t.bagChecks : `${t.bagChecks} · ${ago(nowSec - checkedAt, t)}`}
+              valueColor={checkedAt === null ? "var(--ts-hint)" : SC[ratioTone(passed, result.providers.length)]}
+            />
+          </div>
           <SectionHeader title={t.bagSection} />
           <Card>
-            <CopyRow label={t.bagId} copyValue={result.chain.bagId}>
-              <a
-                className={styles.link}
-                href={bagGatewayUrl(result.chain.bagId)}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                {shorten(result.chain.bagId, 12).toUpperCase()}
-              </a>
-            </CopyRow>
-            <FieldRow divider label={t.bagSize} value={formatBytes(result.chain.fileSize)} />
-            <FieldRow divider label={t.bagChunk} value={formatBytes(result.chain.chunkSize)} />
-            <CopyRow label={t.bagMerkle} copyValue={result.chain.merkleHash} divider>
-              <span className={styles.mono}>{shorten(result.chain.merkleHash, 12)}</span>
-            </CopyRow>
+            {result.bag_id && (
+              <CopyRow label={t.bagId} copyValue={result.bag_id}>
+                <a
+                  className={styles.link}
+                  href={bagGatewayUrl(result.bag_id)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {shorten(result.bag_id, 12).toUpperCase()}
+                </a>
+              </CopyRow>
+            )}
+            <FieldRow divider label={t.bagSize} value={formatBytes(result.size)} />
+            <FieldRow divider label={t.bagChunk} value={formatBytes(result.chunk_size)} />
+            {result.merkle_hash && (
+              <CopyRow label={t.bagMerkle} copyValue={result.merkle_hash} divider>
+                <span className={styles.mono}>{shorten(result.merkle_hash, 12)}</span>
+              </CopyRow>
+            )}
+            <FieldRow divider label={t.bagDepth} value={result.key_len ?? EMPTY} />
           </Card>
 
           <SectionHeader title={t.bagContract} />
           <Card>
-            <ExplorerAddressRow label={t.bagAddress} address={result.address} />
-            {result.owner && <ExplorerAddressRow label={t.bagOwner} address={toUserFriendly(result.owner)} divider />}
-            <FieldRow divider label={t.balanceLabel} value={formatPriceGram(result.chain.balance)} />
+            <ExplorerAddressRow label={t.bagAddress} address={result.contract_address} />
+            {result.owner_address && (
+              <ExplorerAddressRow label={t.bagOwner} address={toUserFriendly(result.owner_address)} divider />
+            )}
             <FieldRow
               divider
-              label={t.peers}
-              value={
-                <>
-                  {result.chain.providers.filter((p) => result.reasons.get(p.pubkey) === 0).length}
-                  <span className={styles.slash}>/</span>
-                  {result.chain.providers.length}
-                </>
-              }
+              label={t.balanceLabel}
+              value={result.balance != null ? formatPriceGram(result.balance) : EMPTY}
             />
           </Card>
 
           <div className={styles.count}>
-            {t.list} · {result.chain.providers.length}
+            {t.list} · {result.providers.length}
           </div>
           <div className={styles.list}>
-            {result.chain.providers.map((prov) => {
-              const st = providerStatus(result.reasons.get(prov.pubkey) ?? null, t);
-              const offer = providers.find((p) => p.pubkey === prov.pubkey)?.maxSpan ?? null;
-              const spanMismatch = offer !== null && offer < prov.maxSpan;
+            {result.providers.map((prov) => {
+              const listed = providers.find((p) => p.pubkey === prov.pubkey);
+              const off = mismatch(prov, listed);
               return (
                 <Card key={prov.pubkey}>
-                  <div className={styles.phead}>
-                    <span className={styles.pk}>{names[prov.pubkey] || shorten(prov.pubkey, 16).toUpperCase()}</span>
-                    <CopyButton value={prov.pubkey} />
+                  <div className={styles.title} style={{ color: SC[stateTone(prov.state)] }}>
+                    {stateText(prov.state, t)}
                   </div>
-                  <div className={styles.pstat}>
-                    <StatusDot color={st.color} size={7} />
-                    <span className={styles.plabel} style={{ color: st.color }}>
-                      {st.label}
+                  <div
+                    className={styles.sub}
+                    style={prov.reason ? { color: SC[reasonTone(prov.reason)] } : undefined}
+                  >
+                    {reasonText(prov.reason, t)}
+                  </div>
+                  <CopyRow label={t.bagProvider} copyValue={prov.pubkey} divider compact>
+                    <span className={styles.pk}>
+                      {names[prov.pubkey] || shorten(prov.pubkey, 16).toUpperCase()}
                     </span>
-                    {st.code !== null && (
-                      <span className={styles.badge} style={{ color: st.color, background: tint(st.color, 0.15) }}>
-                        {st.code}
-                      </span>
-                    )}
-                  </div>
+                  </CopyRow>
                   <FieldRow
                     divider
+                    compact
                     label={t.maxSpanF}
                     value={
                       <>
-                        <span style={spanMismatch ? { color: SC.red } : undefined}>{formatTime(prov.maxSpan, t)}</span>
+                        <span style={off.span ? { color: SC.red } : undefined}>
+                          {prov.payment_max_span !== null ? formatTime(prov.payment_max_span, t) : EMPTY}
+                        </span>
                         <span className={styles.slash}>/</span>
-                        {offer !== null ? formatTime(offer, t) : EMPTY}
+                        {listed ? formatTime(listed.maxSpan, t) : EMPTY}
                       </>
                     }
                   />
                   <FieldRow
                     divider
-                    label={t.lastProof}
-                    value={prov.lastProof > 0 ? ago(nowSec - prov.lastProof, t) : EMPTY}
+                    compact
+                    label={t.bagRate}
+                    value={
+                      <>
+                        <span style={off.rate ? { color: SC.red } : undefined}>
+                          {prov.rate_per_mb_day !== null ? formatCount(prov.rate_per_mb_day) : EMPTY}
+                        </span>
+                        <span className={styles.slash}>/</span>
+                        {listed ? formatCount(Math.round(listed.price / PRICE_MB_DAYS)) : EMPTY}
+                      </>
+                    }
                   />
-                  <FieldRow divider label={t.nextProof} value={nextProofValue(prov.lastProof, prov.maxSpan, nowSec, t)} />
+                  <FieldRow
+                    divider
+                    compact
+                    label={t.lastProof}
+                    value={prov.last_proof_at ? ago(nowSec - prov.last_proof_at, t) : EMPTY}
+                  />
+                  <FieldRow
+                    divider
+                    compact
+                    label={t.nextProof}
+                    value={nextProofValue(
+                      prov.last_proof_at,
+                      prov.payment_max_span,
+                      nowSec,
+                      t,
+                      prov.state === "not_confirmed",
+                    )}
+                  />
+                  <CopyRow label={t.bagNextByte} copyValue={String(prov.next_proof_byte ?? "")} divider compact>
+                    <span className={styles.mono}>
+                      {prov.next_proof_byte !== null ? formatCount(prov.next_proof_byte) : EMPTY}
+                    </span>
+                  </CopyRow>
+                  <CopyRow label={t.bagNonce} copyValue={prov.nonce ?? ""} divider compact>
+                    <span className={styles.mono}>{prov.nonce ?? EMPTY}</span>
+                  </CopyRow>
                 </Card>
               );
             })}
@@ -276,12 +361,26 @@ function BagSkeleton({ t }: { t: Dict }) {
   );
   return (
     <>
+      {/* Same order the loaded screen has, or the layout jumps once the answer arrives. */}
+      <Card className={styles.stateCard}>
+        <div className={styles.title}>
+          <span className={styles.skTitle} />
+        </div>
+      </Card>
+      <div className={styles.tiles}>
+        {[0, 1].map((key) => (
+          <div key={key} className={styles.skTile}>
+            <span className={styles.skValueNarrow} />
+          </div>
+        ))}
+      </div>
       <SectionHeader title={t.bagSection} />
       <Card>
         {row(0, styles.skValueWide)}
         {row(1, styles.skValueMid)}
         {row(2, styles.skValueMid)}
         {row(3, styles.skValueWide)}
+        {row(4, styles.skValueNarrow)}
       </Card>
       <SectionHeader title={t.bagContract} />
       <Card>
@@ -296,15 +395,18 @@ function BagSkeleton({ t }: { t: Dict }) {
       <div className={styles.list}>
         {[0, 1].map((key) => (
           <Card key={key}>
-            <div className={styles.phead}>
-              <span className={styles.skPk} />
+            <div className={styles.title}>
+              <span className={styles.skTitle} />
             </div>
-            <div className={styles.pstat}>
-              <span className={styles.skStatusBar} />
+            <div className={styles.sub}>
+              <span className={styles.skSub} />
             </div>
             {row(0, styles.skValueMid)}
-            {row(1, styles.skValueWide)}
-            {row(2, styles.skValueMid)}
+            {row(1, styles.skValueMid)}
+            {row(2, styles.skValueWide)}
+            {row(3, styles.skValueMid)}
+            {row(4, styles.skValueMid)}
+            {row(5, styles.skValueWide)}
           </Card>
         ))}
       </div>

@@ -20,7 +20,6 @@ SESSION_TTL = timedelta(days=3)
 INIT_DATA_MAX_AGE = timedelta(hours=1)
 
 OIDC_ISSUER = "https://oauth.telegram.org"
-OIDC_AUTH_URL = "https://oauth.telegram.org/auth"
 OIDC_TOKEN_URL = "https://oauth.telegram.org/token"
 OIDC_JWKS_URL = "https://oauth.telegram.org/.well-known/jwks.json"
 

@@ -9,9 +9,19 @@
   white-space: nowrap;
 }
 
+.linkCompact {
+  composes: link;
+  font-size: 13px;
+}
+
 .name {
   composes: link;
   font-family: var(--ts-font);
   letter-spacing: normal;
   font-size: 14.5px;
+}
+
+.nameCompact {
+  composes: name;
+  font-size: 13.5px;
 }

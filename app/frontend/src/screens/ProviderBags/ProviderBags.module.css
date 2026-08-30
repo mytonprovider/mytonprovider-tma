@@ -1,3 +1,29 @@
+.about {
+  margin-top: 14px;
+  padding: 12px 14px;
+  background: var(--ts-card);
+  border-radius: var(--ts-radius-card);
+}
+
+.aboutHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14.5px;
+  font-weight: 600;
+}
+
+.aboutText {
+  margin-top: 5px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ts-hint);
+}
+
+.search {
+  margin-top: 8px;
+}
+
 .count {
   composes: count from "../../styles/list.module.css";
 }
@@ -10,99 +36,87 @@
   composes: list from "../../styles/list.module.css";
 }
 
-.row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 12px 12px 14px;
-  min-height: 64px;
+.card {
   background: var(--ts-card);
   border-radius: var(--ts-radius-card);
+  overflow: hidden;
   cursor: pointer;
   transition: transform 0.15s ease;
   -webkit-tap-highlight-color: transparent;
 }
 
-.row:active {
+.card:active {
   transform: scale(0.985);
 }
 
-.main {
-  flex: 1;
-  min-width: 0;
-}
-
-.head {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-}
-
-.bid {
-  composes: mono from "../../styles/list.module.css";
-}
-
-.status {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 6px;
-  font-size: 12.5px;
-}
-
-.rt {
-  min-width: 0;
-  color: var(--ts-text);
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-}
-
-.meta {
-  margin-top: 4px;
-  font-size: 12.5px;
-  color: var(--ts-hint);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.rsize {
-  flex: none;
-  font-size: 13px;
+.title {
+  padding: 10px 14px 9px;
+  font-size: 14px;
   font-weight: 600;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.sub {
+  padding: 0 14px 9px;
+  font-size: 12.5px;
+  line-height: 1.35;
+  text-align: center;
   color: var(--ts-hint);
+  /* The check keeps its own colour - it is the second axis and has to be readable on
+     its own - but yields to the title above it. Both being red at full strength read
+     as one smeared line instead of two answers. */
+  opacity: 0.75;
+}
+
+.code {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: var(--ts-seg);
+  color: var(--ts-hint);
+  font-size: 11.5px;
   font-variant-numeric: tabular-nums;
-  white-space: nowrap;
+  vertical-align: 1px;
+}
+
+.link {
+  composes: linkCompact from "../../components/ExplorerAddressRow.module.css";
 }
 
 .skeleton {
   composes: pulse from "../../styles/anim.module.css";
-  composes: row;
+  composes: card;
   cursor: default;
 }
 
-.skBid,
-.skStatus,
-.skMeta {
-  display: block;
-  border-radius: 5px;
+.skRow {
+  composes: compact from "../../components/FieldRow.module.css";
+  composes: divider from "../../components/FieldRow.module.css";
+  min-height: 34px;
+}
+
+.skRowCopy {
+  composes: skRow;
+  min-height: 38px;
+}
+
+.skTitle,
+.skBar {
+  display: inline-block;
+  vertical-align: middle;
+  height: 14px;
+  border-radius: 6px;
   background: var(--ts-seg);
 }
 
-.skBid {
-  width: 55%;
-  height: 20px;
+.skTitle {
+  width: 42%;
 }
 
-.skStatus {
-  width: 80%;
-  height: 15px;
+.skSub {
+  composes: skTitle;
+  width: 54%;
+  height: 13px;
 }
-
-.skMeta {
-  width: 40%;
-  height: 15px;
-}
-

@@ -1,0 +1,15 @@
+{% extends "layout.html" %}
+{% from "fields/_copy_button.html" import copy_button %}
+{% from "_panel.html" import panel, empty_row, tile, key_cell, count_cell, value_cell, state_cell, number_cell, flag_cell, state_row %}
+{% block head_css %}
+    {{ super() }}
+    <style>
+        .page-header {
+            display: none;
+        }
+    </style>
+{% endblock %}
+{% block script %}
+    {{ super() }}
+    <script src="{{ static_url(request, 'js/utils.js', v=1) }}"></script>
+{% endblock %}

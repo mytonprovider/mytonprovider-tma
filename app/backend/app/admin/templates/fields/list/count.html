@@ -1,0 +1,3 @@
+{% set url = field.href(request, row) if field.href else None %}
+{% if url and data %}<a class="d-block text-end text-nowrap" href="{{ url }}">{{ data }}</a>
+{% else %}<span class="d-block text-end text-nowrap">{{ data }}</span>{% endif %}

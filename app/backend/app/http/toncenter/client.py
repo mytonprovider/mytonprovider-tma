@@ -1,6 +1,13 @@
+from typing import Any
+
 from app import config
 from app.http.client import HttpClient
-from app.http.toncenter.models import TransactionList
+from app.http.toncenter.models import AccountList, MessageList, TransactionList
+
+# The index can show a transaction minutes late, and a lt cursor that stepped over
+# it has no way back. Cursors move only past transactions older than this: one such
+# miss cost a provider a proof and its reward (47 663 907 nanoton).
+INDEX_LAG = 5 * 60
 
 
 class Toncenter(HttpClient):
@@ -10,6 +17,26 @@ class Toncenter(HttpClient):
             rps_limit=config.TONCENTER_API_RPS,
             headers={"X-API-Key": config.TONCENTER_API_KEY},
         )
+
+    async def account_states(self, addresses: list[str]) -> AccountList:
+        return await self.request(
+            "GET",
+            "accountStates",
+            params={"address": addresses},
+            response_model=AccountList,
+        )
+
+    async def messages(
+        self,
+        opcode: int,
+        start_lt: int | None = None,
+        limit: int = 200,
+        sort: str = "asc",
+    ) -> MessageList:
+        params: dict[str, Any] = {"opcode": f"0x{int(opcode):08x}", "limit": limit, "sort": sort}
+        if start_lt is not None:
+            params["start_lt"] = start_lt
+        return await self.request("GET", "messages", params=params, response_model=MessageList)
 
     async def transactions(
         self,
