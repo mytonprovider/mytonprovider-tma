@@ -56,7 +56,6 @@ export async function establishSession(): Promise<void> {
 
 export function endSession(): void {
   const auth = useAuth.getState();
-  if (auth.isAdmin) void backend.adminLogout().catch(() => {});
   auth.logout();
   useSubscriptions.getState().setAll([]);
 }

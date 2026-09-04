@@ -58,9 +58,15 @@
     <div class="gate">
         <img src="/logo.svg" class="gate-logo" alt="" />
         <div class="gate-title">{{ app_title }}</div>
-        <div class="gate-desc">{{ _("The panel opens from the app.") }}</div>
-        <a class="gate-button" href="/">
-            {{ _("Open the app") }}
+        <div class="gate-desc">
+            {% if denied %}
+                {{ _("This account has no access to the panel.") }}
+            {% else %}
+                {{ _("You are signed out.") }}
+            {% endif %}
+        </div>
+        <a class="gate-button" href="{{ url_for(__name__ ~ ':login') }}">
+            {{ _("Log in with Telegram") }}
         </a>
     </div>
 {% endblock %}

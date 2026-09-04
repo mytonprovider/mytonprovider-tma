@@ -14,6 +14,13 @@
         <a href="#" class="nav-link px-2 hide-theme-light" data-sa-theme="light" aria-label="Light theme">
             <i class="fa-solid fa-sun"></i>
         </a>
+        <button type="button"
+                class="nav-link px-2 border-0 bg-transparent"
+                data-bs-toggle="modal"
+                data-bs-target="#modal-logout"
+                aria-label="{{ _('Logout') }}">
+            <i class="fa-solid fa-right-from-bracket"></i>
+        </button>
     </div>
     <div class="mt-auto p-3 border-top d-none d-lg-flex align-items-center gap-1">
         <span class="avatar avatar-sm"
@@ -27,5 +34,42 @@
         <a href="#" class="nav-link px-2 hide-theme-light" data-sa-theme="light" aria-label="Light theme">
             <i class="fa-solid fa-sun"></i>
         </a>
+        <button type="button"
+                class="nav-link px-2 border-0 bg-transparent"
+                data-bs-toggle="modal"
+                data-bs-target="#modal-logout"
+                aria-label="{{ _('Logout') }}">
+            <i class="fa-solid fa-right-from-bracket"></i>
+        </button>
+    </div>
+{% endblock %}
+{% block tail %}
+    <div class="{{ cls('modal.base') }}"
+         id="modal-logout"
+         tabindex="-1"
+         role="dialog"
+         aria-modal="true"
+         aria-labelledby="modal-logout-title">
+        <div class="modal-dialog modal-sm modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modal-logout-title">{{ _("Logout") }}</h5>
+                    <button type="button"
+                            class="btn-close"
+                            data-bs-dismiss="modal"
+                            aria-label="{{ _('Close') }}"></button>
+                </div>
+                <div class="modal-body">{{ _("You will have to sign in with Telegram again.") }}</div>
+                <div class="modal-footer">
+                    <button type="button" class="{{ cls('action.modal_cancel_button') }}" data-bs-dismiss="modal">
+                        {{ _("Cancel") }}
+                    </button>
+                    <form action="{{ url_for(__name__ ~ ':logout') }}" method="post" class="m-0">
+                        {{ csrf_input(request) }}
+                        <button type="submit" class="{{ cls('action.modal_confirm_button') }}">{{ _("Logout") }}</button>
+                    </form>
+                </div>
+            </div>
+        </div>
     </div>
 {% endblock %}

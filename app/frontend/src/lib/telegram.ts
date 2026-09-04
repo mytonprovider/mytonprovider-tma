@@ -1,5 +1,5 @@
 import { init } from "@/init";
-import { backButton, hapticFeedback, initData, retrieveLaunchParams, retrieveRawInitData, settingsButton } from "@tma.js/sdk-react";
+import { backButton, hapticFeedback, initData, openLink, retrieveLaunchParams, retrieveRawInitData, settingsButton } from "@tma.js/sdk-react";
 
 interface TelegramUser {
   id: number;
@@ -126,6 +126,18 @@ export function notify(type: NotificationType): void {
   try {
     if (hapticFeedback.notificationOccurred.isAvailable()) hapticFeedback.notificationOccurred(type);
   } catch {}
+}
+
+export function openExternal(url: string): void {
+  if (isInTelegram()) {
+    try {
+      if (openLink.isAvailable()) {
+        openLink(url);
+        return;
+      }
+    } catch {}
+  }
+  window.open(url, "_blank", "noopener");
 }
 
 export function tick(): void {

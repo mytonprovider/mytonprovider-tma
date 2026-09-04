@@ -12,14 +12,17 @@ from aiogram.utils.web_app import WebAppInitData, safe_parse_webapp_init_data
 from cachetools import TTLCache
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import config
 from app.db.models import UserModel
+from app.db.repos import UserRepo
 
 SESSION_TTL = timedelta(days=3)
 INIT_DATA_MAX_AGE = timedelta(hours=1)
 
 OIDC_ISSUER = "https://oauth.telegram.org"
+OIDC_AUTH_URL = "https://oauth.telegram.org/auth"
 OIDC_TOKEN_URL = "https://oauth.telegram.org/token"
 OIDC_JWKS_URL = "https://oauth.telegram.org/.well-known/jwks.json"
 
@@ -176,3 +179,15 @@ def claims_user_id(claims: dict[str, Any]) -> int:
 def claims_str(claims: dict[str, Any], key: str) -> str | None:
     value = claims.get(key)
     return value if isinstance(value, str) else None
+
+
+async def user_from_claims(claims: dict[str, Any], session: AsyncSession) -> UserModel:
+    user = await UserRepo(session).visited(
+        claims_user_id(claims),
+        None,
+        claims_str(claims, "preferred_username"),
+        claims_str(claims, "name") or claims_str(claims, "given_name"),
+        claims_str(claims, "picture"),
+    )
+    deny_banned(user)
+    return user

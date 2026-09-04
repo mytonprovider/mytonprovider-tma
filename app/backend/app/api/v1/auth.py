@@ -50,14 +50,7 @@ async def auth_telegram(body: TelegramRequest, session: AsyncSession = Depends(g
 @router.post("/widget")
 async def auth_widget(body: WidgetRequest, session: AsyncSession = Depends(get_session)) -> AuthResponse:
     claims = await run_in_threadpool(auth.verify_id_token, body.id_token)
-    user = await UserRepo(session).visited(
-        auth.claims_user_id(claims),
-        None,
-        auth.claims_str(claims, "preferred_username"),
-        auth.claims_str(claims, "name") or auth.claims_str(claims, "given_name"),
-        auth.claims_str(claims, "picture"),
-    )
-    auth.deny_banned(user)
+    user = await auth.user_from_claims(claims, session)
     await session.commit()
     return AuthResponse(token=auth.issue_session_token(user.id))
 
@@ -66,17 +59,13 @@ async def auth_widget(body: WidgetRequest, session: AsyncSession = Depends(get_s
 async def auth_code(body: CodeRequest, session: AsyncSession = Depends(get_session)) -> AuthResponse:
     id_token = await auth.exchange_code(body.code, body.redirect_uri)
     claims = await run_in_threadpool(auth.verify_id_token, id_token)
-    name = auth.claims_str(claims, "name") or auth.claims_str(claims, "given_name")
-    username = auth.claims_str(claims, "preferred_username")
-    photo_url = auth.claims_str(claims, "picture")
-    user = await UserRepo(session).visited(auth.claims_user_id(claims), None, username, name, photo_url)
-    auth.deny_banned(user)
+    user = await auth.user_from_claims(claims, session)
     await session.commit()
     return AuthResponse(
         token=auth.issue_session_token(user.id),
-        name=name,
-        username=username,
-        photo_url=photo_url,
+        name=auth.claims_str(claims, "name") or auth.claims_str(claims, "given_name"),
+        username=auth.claims_str(claims, "preferred_username"),
+        photo_url=auth.claims_str(claims, "picture"),
     )
 
 

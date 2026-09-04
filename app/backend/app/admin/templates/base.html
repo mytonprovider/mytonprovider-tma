@@ -99,6 +99,14 @@
             --tblr-border-radius: 12px;
             --tblr-card-border-width: 0;
         }
+        /* Bootstrap hides the page scrollbar while a modal is open and pads the body
+           instead, which shifts the whole panel; a reserved gutter keeps it still. */
+        html {
+            scrollbar-gutter: stable;
+        }
+        body.modal-open {
+            padding-right: 0 !important;
+        }
         @media (max-width: 991.98px) {
             .navbar-vertical .navbar-brand {
                 margin-right: auto;

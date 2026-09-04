@@ -3,12 +3,6 @@ import type { Explorer, Theme } from "@/stores/settings";
 
 const BACKEND_BASE = import.meta.env.VITE_BACKEND_BASE ?? "";
 const TIMEOUT_MS = 15000;
-const CSRF_COOKIE = "starlette_admin_csrftoken";
-
-function readCookie(name: string): string {
-  const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
-  return match ? decodeURIComponent(match[1]) : "";
-}
 
 export class BackendError extends Error {
   status: number;
@@ -239,11 +233,6 @@ export interface BagPayload {
   providers: BagProvider[];
 }
 
-async function adminPost(path: string): Promise<void> {
-  await request<void>("/admin/csrf");
-  await request<void>(path, { method: "POST", headers: { "X-CSRFToken": readCookie(CSRF_COOKIE) } });
-}
-
 export const backend = {
   authTelegram: (initDataRaw: string) =>
     request<{ token: string }>("/api/v1/auth/telegram", {
@@ -261,8 +250,6 @@ export const backend = {
       { method: "POST", body: JSON.stringify({ code, redirect_uri: redirectUri }) },
     ),
   refresh: () => request<{ token: string }>("/api/v1/auth/refresh", { method: "POST" }),
-  adminSession: () => adminPost("/admin/session"),
-  adminLogout: () => adminPost("/admin/logout"),
   profile: () => request<ProfilePayload>("/api/v1/profile"),
   patchProfile: (patch: ProfilePatch) =>
     request<ProfilePayload>("/api/v1/profile", { method: "PATCH", body: JSON.stringify(patch) }),
