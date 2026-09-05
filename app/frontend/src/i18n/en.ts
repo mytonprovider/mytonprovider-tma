@@ -108,6 +108,7 @@ export const en = {
   explorerTitle: "Bag Explorer",
   bagSearchPlaceholder: "Bag ID or contract address",
   bagSection: "Bag",
+  bagFound: "Contracts found",
   bagAddress: "Address",
   bagChunk: "Chunk size",
   bagMerkle: "Merkle hash",

@@ -50,6 +50,10 @@
   opacity: 0.6;
 }
 
+.card {
+  composes: card from "../ProviderBags/ProviderBags.module.css";
+}
+
 .title {
   composes: title from "../ProviderBags/ProviderBags.module.css";
 }

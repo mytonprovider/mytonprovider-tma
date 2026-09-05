@@ -53,12 +53,14 @@ def provider_link(pubkey: str, name: str | None) -> str:
     return f'<b><a href="{provider_url(pubkey)}">{label}</a></b>'
 
 
-def bag_url(bag_id: str) -> str:
-    return f"https://t.me/{config.BOT_USERNAME}?startapp=b_{bag_id.lower()}"
+# The message is about one contract, and one bag id can belong to several of them, so the
+# link carries the address; the label stays the hash the owner recognises.
+def bag_url(address: str) -> str:
+    return f"https://t.me/{config.BOT_USERNAME}?startapp=b_{address}"
 
 
-def bag_link(bag_id: str) -> str:
-    return f'<a href="{bag_url(bag_id)}">{short_key(bag_id)}</a>'
+def bag_link(item: Bag) -> str:
+    return f'<a href="{bag_url(item.address)}">{short_key(item.bag_id)}</a>'
 
 
 def alert(lang: str, title: str, pubkey: str, color: AlertColor, name: str | None) -> str:
@@ -67,7 +69,7 @@ def alert(lang: str, title: str, pubkey: str, color: AlertColor, name: str | Non
 
 
 def _bag_body(lang: str, explorer: str, item: Bag, trusted: bool, owner_name: str | None) -> list[str]:
-    lines = [f"<b>{t(lang, 'bag_id')}</b> {bag_link(item.bag_id)}"]
+    lines = [f"<b>{t(lang, 'bag_id')}</b> {bag_link(item)}"]
     if item.size:
         gateway = BAG_GATEWAY.format(bag_id=item.bag_id.lower())
         lines.append(f'<b>{t(lang, "bag_content")}</b> <a href="{gateway}">{format_size(item.size)}</a>')

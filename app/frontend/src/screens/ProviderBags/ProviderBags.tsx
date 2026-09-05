@@ -100,7 +100,7 @@ export function ProviderBags() {
 
   const openBag = (bag: Bag) => (event: MouseEvent<HTMLDivElement>) => {
     if ((event.target as Element).closest("a")) return;
-    navigate(`/bags?q=${encodeURIComponent(bag.bag_id ?? bag.address)}`);
+    navigate(`/bags?q=${encodeURIComponent(bag.address)}`);
   };
 
   const view = provider ? describeStatus(provider, t) : null;

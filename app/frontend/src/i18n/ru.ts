@@ -111,6 +111,7 @@ export const ru: Dict = {
   explorerTitle: "Обозреватель бэгов",
   bagSearchPlaceholder: "Bag ID или адрес контракта",
   bagSection: "Бэг",
+  bagFound: "Найдено контрактов",
   bagAddress: "Адрес",
   bagChunk: "Размер чанка",
   bagMerkle: "Хеш Меркла",

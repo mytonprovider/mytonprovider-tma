@@ -1,10 +1,13 @@
 import re
+from collections import defaultdict
+from collections.abc import Sequence
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_session
+from app.db.models import BagModel, BagSlotModel
 from app.db.repos import BagRepo, BagSlotRepo
 from app.utils import bounceable
 
@@ -38,20 +41,31 @@ class BagResponse(BaseModel):
     providers: list[BagSlotOut]
 
 
+class BagsResponse(BaseModel):
+    bags: list[BagResponse]
+
+
 @router.get("/{query}")
 async def bag(
     query: str,
     session: AsyncSession = Depends(get_session),
-) -> BagResponse:
+) -> BagsResponse:
     bag_repo = BagRepo(session)
     if BAG_ID_RE.match(query):
-        models = await bag_repo.by_bag(query.lower())
-        model = models[0] if models else None
+        models = list(await bag_repo.by_bag(query.lower()))
     else:
         model = await bag_repo.get(bounceable(query))
-    if model is None:
+        models = [model] if model is not None else []
+    if not models:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Bag not found")
-    rows = await BagSlotRepo(session).by_address(model.address)
+    rows = await BagSlotRepo(session).by_addresses([model.address for model in models])
+    slots: dict[str, list[BagSlotModel]] = defaultdict(list)
+    for row in rows:
+        slots[row.address].append(row)
+    return BagsResponse(bags=[_out(model, slots[model.address]) for model in models])
+
+
+def _out(model: BagModel, rows: Sequence[BagSlotModel]) -> BagResponse:
     return BagResponse(
         contract_address=model.address,
         bag_id=model.bag_id,

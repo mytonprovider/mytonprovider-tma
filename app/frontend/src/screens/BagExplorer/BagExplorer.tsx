@@ -37,12 +37,15 @@ function classify(query: string): QueryKind | null {
   return null;
 }
 
-async function resolveBag(query: string, kind: QueryKind): Promise<BagPayload | null> {
+// A hash is content, and several owners may pay for it, so the answer is a list: one
+// contract for an address, as many as were hired for a bag id.
+async function resolveBag(query: string, kind: QueryKind): Promise<BagPayload[]> {
   const search = kind === "bag" ? query.toLowerCase() : query;
   try {
-    return await backend.bag(search);
+    const { bags } = await backend.bag(search);
+    return bags;
   } catch (error) {
-    if (error instanceof BackendError && error.status === 404) return null;
+    if (error instanceof BackendError && error.status === 404) return [];
     throw error;
   }
 }
@@ -82,6 +85,26 @@ function nextProofValue(
   return t.inFuture(formatTime(deadline - nowSec, t, true));
 }
 
+// The same three rows in both places: the contract section of an open bag, and the card
+// that picks one when the hash matched several.
+function ContractRows({ bag, compact }: { bag: BagPayload; compact?: boolean }) {
+  const t = useT();
+  return (
+    <>
+      <ExplorerAddressRow label={t.bagAddress} address={bag.contract_address} divider={compact} compact={compact} />
+      {bag.owner_address && (
+        <ExplorerAddressRow label={t.bagOwner} address={toUserFriendly(bag.owner_address)} divider compact={compact} />
+      )}
+      <FieldRow
+        divider
+        compact={compact}
+        label={t.balanceLabel}
+        value={bag.balance != null ? formatPriceGram(bag.balance) : EMPTY}
+      />
+    </>
+  );
+}
+
 type Status = "idle" | "loading" | "ready" | "notfound" | "invalid" | "failed";
 
 export function BagExplorer() {
@@ -94,7 +117,7 @@ export function BagExplorer() {
 
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<Status>("idle");
-  const [result, setResult] = useState<BagPayload | null>(null);
+  const [results, setResults] = useState<BagPayload[]>([]);
   const reqRef = useRef(0);
 
   useEffect(() => {
@@ -106,7 +129,7 @@ export function BagExplorer() {
     if (!q) return;
     const kind = classify(q);
     if (!kind) {
-      setResult(null);
+      setResults([]);
       setStatus("invalid");
       return;
     }
@@ -115,8 +138,8 @@ export function BagExplorer() {
     resolveBag(q, kind)
       .then((res) => {
         if (reqRef.current !== id) return;
-        setResult(res);
-        setStatus(res ? "ready" : "notfound");
+        setResults(res);
+        setStatus(res.length ? "ready" : "notfound");
       })
       .catch((error: unknown) => {
         if (reqRef.current !== id) return;
@@ -135,7 +158,9 @@ export function BagExplorer() {
 
   const header = <ScreenHeader title={t.explorerTitle} onBack={() => navigate(-1)} />;
   const nowSec = Math.floor(Date.now() / 1000);
-  const slots = result?.providers ?? [];
+  // One contract is the screen as it always was; several turn the same query into a pick.
+  const single = results.length === 1 ? results[0] : null;
+  const slots = single?.providers ?? [];
   const confirmed = slots.filter((p) => p.state === "confirmed").length;
   const passed = slots.filter((p) => p.reason === 0).length;
   // Upstream checks the whole network in one batch, so the age is one per bag, not per slot.
@@ -164,7 +189,7 @@ export function BagExplorer() {
               onClick={() => {
                 setQuery("");
                 setStatus("idle");
-                setResult(null);
+                setResults([]);
               }}
             >
               <Icon glyph="close" size={16} color="var(--ts-hint)" stroke={2} />
@@ -183,11 +208,33 @@ export function BagExplorer() {
       )}
       {status === "failed" && <Callout glyph="close" title={t.bagsLoadError} iconColor="var(--ts-hint)" />}
 
-      {status === "ready" && result && (
+      {status === "ready" && results.length > 1 && (
+        <>
+          <div className={styles.count}>
+            {t.bagFound} · {results.length}
+          </div>
+          <div className={styles.list}>
+            {results.map((bag) => (
+              <div
+                key={bag.contract_address}
+                className={styles.card}
+                onClick={() => navigate(`/bags?q=${encodeURIComponent(bag.contract_address)}`)}
+              >
+                <div className={styles.title} style={{ color: SC[stateTone(bag.state)] }}>
+                  {stateText(bag.state, t)}
+                </div>
+                <ContractRows bag={bag} compact />
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {status === "ready" && single && (
         <>
           <Card className={styles.stateCard}>
-            <div className={styles.title} style={{ color: SC[stateTone(result.state)] }}>
-              {stateText(result.state, t)}
+            <div className={styles.title} style={{ color: SC[stateTone(single.state)] }}>
+              {stateText(single.state, t)}
             </div>
           </Card>
           <div className={styles.tiles}>
@@ -197,12 +244,12 @@ export function BagExplorer() {
                   {confirmed}
                   <span className={styles.den}>
                     <span className={styles.slash}>/</span>
-                    {result.providers.length}
+                    {single.providers.length}
                   </span>
                 </>
               }
               label={t.bagProofs}
-              valueColor={SC[ratioTone(confirmed, result.providers.length)]}
+              valueColor={SC[ratioTone(confirmed, single.providers.length)]}
             />
             <MetricTile
               value={
@@ -213,57 +260,49 @@ export function BagExplorer() {
                     {passed}
                     <span className={styles.den}>
                       <span className={styles.slash}>/</span>
-                      {result.providers.length}
+                      {single.providers.length}
                     </span>
                   </>
                 )
               }
               label={checkedAt === null ? t.bagChecks : `${t.bagChecks} · ${ago(nowSec - checkedAt, t)}`}
-              valueColor={checkedAt === null ? "var(--ts-hint)" : SC[ratioTone(passed, result.providers.length)]}
+              valueColor={checkedAt === null ? "var(--ts-hint)" : SC[ratioTone(passed, single.providers.length)]}
             />
           </div>
           <SectionHeader title={t.bagSection} />
           <Card>
-            {result.bag_id && (
-              <CopyRow label={t.bagId} copyValue={result.bag_id}>
+            {single.bag_id && (
+              <CopyRow label={t.bagId} copyValue={single.bag_id}>
                 <a
                   className={styles.link}
-                  href={bagGatewayUrl(result.bag_id)}
+                  href={bagGatewayUrl(single.bag_id)}
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  {shorten(result.bag_id, 12).toUpperCase()}
+                  {shorten(single.bag_id, 12).toUpperCase()}
                 </a>
               </CopyRow>
             )}
-            <FieldRow divider label={t.bagSize} value={formatBytes(result.size)} />
-            <FieldRow divider label={t.bagChunk} value={formatBytes(result.chunk_size)} />
-            {result.merkle_hash && (
-              <CopyRow label={t.bagMerkle} copyValue={result.merkle_hash} divider>
-                <span className={styles.mono}>{shorten(result.merkle_hash, 12)}</span>
+            <FieldRow divider label={t.bagSize} value={formatBytes(single.size)} />
+            <FieldRow divider label={t.bagChunk} value={formatBytes(single.chunk_size)} />
+            {single.merkle_hash && (
+              <CopyRow label={t.bagMerkle} copyValue={single.merkle_hash} divider>
+                <span className={styles.mono}>{shorten(single.merkle_hash, 12)}</span>
               </CopyRow>
             )}
-            <FieldRow divider label={t.bagDepth} value={result.key_len ?? EMPTY} />
+            <FieldRow divider label={t.bagDepth} value={single.key_len ?? EMPTY} />
           </Card>
 
           <SectionHeader title={t.bagContract} />
           <Card>
-            <ExplorerAddressRow label={t.bagAddress} address={result.contract_address} />
-            {result.owner_address && (
-              <ExplorerAddressRow label={t.bagOwner} address={toUserFriendly(result.owner_address)} divider />
-            )}
-            <FieldRow
-              divider
-              label={t.balanceLabel}
-              value={result.balance != null ? formatPriceGram(result.balance) : EMPTY}
-            />
+            <ContractRows bag={single} />
           </Card>
 
           <div className={styles.count}>
-            {t.list} · {result.providers.length}
+            {t.list} · {single.providers.length}
           </div>
           <div className={styles.list}>
-            {result.providers.map((prov) => {
+            {single.providers.map((prov) => {
               const listed = providers.find((p) => p.pubkey === prov.pubkey);
               const off = mismatch(prov, listed);
               return (

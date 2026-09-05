@@ -51,7 +51,9 @@ class BagRepo(BaseRepo[BagModel]):
         return list(result.scalars().all())
 
     async def by_bag(self, bag_id: str) -> Sequence[BagModel]:
-        stmt = select(BagModel).where(BagModel.bag_id == bag_id)
+        # Several owners may pay for the same content, so the hash matches several
+        # contracts; the freshest one is the one still running.
+        stmt = select(BagModel).where(BagModel.bag_id == bag_id).order_by(BagModel.created_at.desc())
         result = await self.session.execute(stmt)
         return result.scalars().all()
 

@@ -285,5 +285,5 @@ export const backend = {
       `/api/v1/provider/${pubkey}/bags?state=${state}&offset=${offset}` +
         (query ? `&q=${encodeURIComponent(query)}` : ""),
     ),
-  bag: (query: string) => request<BagPayload>(`/api/v1/bag/${encodeURIComponent(query)}`),
+  bag: (query: string) => request<{ bags: BagPayload[] }>(`/api/v1/bag/${encodeURIComponent(query)}`),
 };
