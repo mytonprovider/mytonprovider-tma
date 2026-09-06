@@ -53,6 +53,53 @@ type Visible = Record<Tab, number>;
 
 const FIRST_PAGE: Visible = { list: PAGE_SIZE, subs: PAGE_SIZE, fav: PAGE_SIZE };
 
+const SHAPE_KEY = "mtp-list-shape";
+const TABS: Tab[] = ["list", "subs", "fav"];
+
+export interface ListShape {
+  shown: number;
+  total: number;
+}
+
+const COLD_SHAPE: Record<Tab, ListShape> = {
+  list: { shown: PAGE_SIZE, total: 0 },
+  subs: { shown: PAGE_SIZE, total: 0 },
+  fav: { shown: PAGE_SIZE, total: 0 },
+};
+
+function isCount(value: unknown): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value >= 0;
+}
+
+// How long each tab was when the app was last closed: the list comes back the same size
+// and the skeleton draws that many rows instead of a guess.
+function storedShapes(): Record<Tab, ListShape> {
+  const shapes = { ...COLD_SHAPE };
+  try {
+    const saved = JSON.parse(localStorage.getItem(SHAPE_KEY) ?? "{}") as Record<string, unknown>;
+    for (const tab of TABS) {
+      const { shown, total } = (saved[tab] ?? {}) as { shown?: unknown; total?: unknown };
+      if (isCount(shown) && shown > 0 && isCount(total) && total >= shown) shapes[tab] = { shown, total };
+    }
+  } catch {
+    return COLD_SHAPE;
+  }
+  return shapes;
+}
+
+export const listShapes = storedShapes();
+
+export function rememberShape(tab: Tab, shown: number, total: number): void {
+  const current = listShapes[tab];
+  if (current.shown === shown && current.total === total) return;
+  listShapes[tab] = { shown, total };
+  try {
+    localStorage.setItem(SHAPE_KEY, JSON.stringify(listShapes));
+  } catch {
+    return;
+  }
+}
+
 interface CatalogQueryState {
   tab: Tab;
   search: string;
@@ -72,7 +119,7 @@ export const useCatalogQuery = create<CatalogQueryState>((set) => ({
   search: "",
   sort: { field: "rating", dir: "desc" },
   filters: EMPTY_FILTERS,
-  visible: FIRST_PAGE,
+  visible: { list: listShapes.list.shown, subs: listShapes.subs.shown, fav: listShapes.fav.shown },
   setTab: (tab) => set({ tab }),
   setSearch: (search) => set({ search, visible: FIRST_PAGE }),
   setSortField: (field) =>

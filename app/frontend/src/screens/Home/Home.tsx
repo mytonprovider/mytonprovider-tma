@@ -16,7 +16,7 @@ import { notify } from "@/lib/telegram";
 import { isHydrated, onHydrated } from "@/lib/storage";
 import { useAuth } from "@/stores/auth";
 import { useCatalog } from "@/stores/catalog";
-import { PAGE_SIZE, type Tab, useCatalogQuery } from "@/stores/catalogQuery";
+import { type Tab, listShapes, rememberShape, useCatalogQuery } from "@/stores/catalogQuery";
 import { useFavorites } from "@/stores/favorites";
 import { useNames } from "@/stores/names";
 import { useSubscriptions } from "@/stores/subscriptions";
@@ -180,6 +180,15 @@ export function Home() {
 
   const query = search.trim();
 
+  // Plain lists only: a search or a filter narrows the tab for a moment, and that length
+  // says nothing about how far the owner had scrolled.
+  useEffect(() => {
+    if (query || activeFilters > 0) return;
+    if (!loading) rememberShape("list", Math.min(visible.list, listItems.length), listItems.length);
+    if (!favLoading) rememberShape("fav", Math.min(visible.fav, favItems.length), favItems.length);
+    if (!subsLoading) rememberShape("subs", Math.min(visible.subs, subItems.length), subItems.length);
+  }, [query, activeFilters, loading, favLoading, subsLoading, visible, listItems, favItems, subItems]);
+
   const marks = {
     subs: { glyph: "bell" as const, title: t.subsTitle },
     list: { icon: <TonLogo />, title: t.mainTitle },
@@ -213,7 +222,7 @@ export function Home() {
           toolbar={subsToolbar}
           count={loggedIn && subItems.length > 0 ? t.showing(rows.length, subItems.length) : null}
           loading={subsLoading}
-          skeletonCount={rows.length || (hydrated ? Math.min(subscribed.length, PAGE_SIZE) : PENDING_ROWS)}
+          skeletonCount={rows.length || (hydrated ? Math.min(subscribed.length, listShapes.subs.shown) : PENDING_ROWS)}
           rows={rows}
           trailing={bellToggle}
           fallback={
@@ -231,6 +240,7 @@ export function Home() {
           }
           onOpen={openProvider}
           onLoadMore={subItems.length > rows.length ? () => loadMore("subs") : undefined}
+          expectMore={subItems.length > rows.length || listShapes.subs.total > listShapes.subs.shown}
         />
       );
     }
@@ -244,7 +254,12 @@ export function Home() {
         count={items.length > 0 ? t.showing(rows.length, items.length) : null}
         loading={key === "fav" ? favLoading : loading}
         skeletonCount={
-          rows.length || (key === "fav" ? (hydrated ? Math.min(favorites.length, PAGE_SIZE) : PENDING_ROWS) : PAGE_SIZE)
+          rows.length ||
+          (key === "fav"
+            ? hydrated
+              ? Math.min(favorites.length, listShapes.fav.shown)
+              : PENDING_ROWS
+            : listShapes.list.shown)
         }
         rows={rows}
         trailing={starToggle}
@@ -261,6 +276,7 @@ export function Home() {
         }
         onOpen={openProvider}
         onLoadMore={items.length > rows.length ? () => loadMore(key) : undefined}
+        expectMore={items.length > rows.length || listShapes[key].total > listShapes[key].shown}
       />
     );
   };

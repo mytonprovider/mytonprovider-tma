@@ -17,6 +17,7 @@ interface ProviderPaneProps {
   fallback?: ReactNode;
   onOpen: (pubkey: string) => void;
   onLoadMore?: () => void;
+  expectMore?: boolean;
 }
 
 export function ProviderPane({
@@ -30,6 +31,7 @@ export function ProviderPane({
   fallback,
   onOpen,
   onLoadMore,
+  expectMore,
 }: ProviderPaneProps) {
   return (
     <>
@@ -73,7 +75,9 @@ export function ProviderPane({
         <div className={styles.fallback}>{fallback}</div>
       )}
 
-      {!loading && onLoadMore && <LoadMore onClick={onLoadMore} />}
+      {loading
+        ? expectMore && <span className={styles.moreBar} />
+        : onLoadMore && <LoadMore onClick={onLoadMore} />}
     </>
   );
 }
