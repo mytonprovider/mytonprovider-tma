@@ -23,7 +23,8 @@ from app.db.models import BagModel, BagSlotModel, ProviderModel
 NOW = datetime(2026, 8, 29, 12, 0, tzinfo=timezone.utc)
 SPAN = 7 * 86400
 SIZE = 4 * 1024**3
-RATE = 1628
+# A rate a live contract carries: at the catalogue minimum the fixture falls under BOUNTY_FLOOR.
+RATE = 157_902
 PAID = STORAGE_RESERVE + int(bounty(SIZE, RATE, SPAN)) * 10
 
 
@@ -44,7 +45,7 @@ def bag(**kwargs: Any) -> BagModel:
     return BagModel(address="b", **{**fields, **kwargs})
 
 
-def slot(proof_ago: int | None = None, hired_ago: int = 60, span: int = SPAN, rate: int = RATE) -> BagSlotModel:
+def slot(proof_ago: int | None = None, hired_ago: int = 60, span: int = SPAN, rate: int | None = RATE) -> BagSlotModel:
     return BagSlotModel(
         address="b",
         provider_pubkey="p",
@@ -93,8 +94,14 @@ def slots() -> None:
     check("span above maximum", state(slot(span=10**9), provider_row=provider(max_span=SPAN)), SlotState.NOT_ACCEPTED)
     check("bag too big", state(slot(), provider_row=provider(max_bag_size_bytes=1)), SlotState.NOT_ACCEPTED)
     check("rate too low", state(slot(rate=1), provider_row=provider(min_rate_per_mb_day=2)), SlotState.NOT_ACCEPTED)
+    check("bounty under the floor", state(slot(rate=1), provider_row=provider()), SlotState.NOT_ACCEPTED)
     # the catalogue leaves terms null; an unknown one cannot mean the offer was refused
     check("terms unknown", state(slot(), provider_row=provider(min_span=None, max_span=None)), SlotState.DOWNLOADING)
+    check(
+        "rate unknown",
+        state(slot(rate=None), provider_row=provider(min_rate_per_mb_day=None)),
+        SlotState.DOWNLOADING,
+    )
 
     # nobody fetched it: needs a swarm, no proofs at all, and well past the budget
     dead_age = int(UNAVAILABLE_AGE.total_seconds()) + 3600
@@ -108,7 +115,8 @@ def slots() -> None:
     # offered a 1536-day span used to read as downloading for a year
     check(
         "huge span, tiny bag",
-        state(slot(span=132_710_400, hired_ago=dead_age), bag(size=30_000)),
+        # the rate has to clear the bounty floor, or the offer is refused before the budget
+        state(slot(span=132_710_400, hired_ago=dead_age, rate=1_200_000), bag(size=30_000)),
         SlotState.NOT_CONFIRMED,
     )
     inside = int(download_budget(SIZE, SPAN).total_seconds()) - 60

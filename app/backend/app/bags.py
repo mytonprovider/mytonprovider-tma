@@ -9,42 +9,37 @@ if TYPE_CHECKING:
 BYTES_IN_MB = 1024 * 1024
 SECONDS_IN_DAY = 86400
 
-# The month a provider's income is quoted in. Rates are per day, and a calendar month
-# would make the number jump between February and March for no reason the owner caused.
+# Income is quoted per 30 days: a calendar month would jump between February and March.
 DAYS_IN_MONTH = 30
 
-# Two or more providers hired and none of them proved: nobody seeds the bag.
-# A single provider without a proof says nothing about the swarm.
+# Nobody seeds the bag only when two were hired and neither proved; one alone says nothing.
 MIN_PEERS = 2
 
-# After the first proof we allow one and a half spans: a proof reaches the chain
-# with a delay and providers do not send it at the last second of the window.
+# One and a half spans after the first proof: it reaches the chain late, and not at the last second.
 OVERDUE_FACTOR = 1.5
 
-# Measured over 409 first proofs: speed is steady (median 5.07 MB/s, size-independent),
-# the spread comes from providers not picking the contract up at once.
+# Measured on 409 first proofs: 5.07 MB/s median, size-independent; the spread is pick-up delay.
 SLOW_START = timedelta(hours=2)
 SLOW_RATE = 5 * 1024 * 1024
 
-# raw_reserve(fee::storage) in the storage contract: what stays on an empty one,
-# so it is not the owner's money and never pays a provider.
+# raw_reserve(fee::storage) in the storage contract: never the owner's money, never pays a provider.
 STORAGE_RESERVE = 5_000_000
 
 # ErrLowBalance in tonutils-storage-provider: below this a provider skips the offer.
 PROVIDER_MIN_BALANCE = 80_000_000
 
-# A day splits "nobody fetched it" from "fetching slowly": of 409 finished downloads only
-# three took longer, while every slot that never proved is older.
+# ErrLowBounty in the same daemon: below this the proof fees cost more than the span pays.
+BOUNTY_FLOOR = 50_000_000
+
+# A day splits "nobody fetched it" from "fetching slowly": 3 of 409 downloads took longer.
 UNAVAILABLE_AGE = timedelta(hours=24)
 
 
-# Not a state but a flag from the other axis: upstream asks the provider for a random
-# piece with a merkle proof, and a non-zero code means it never came or failed.
+# The other axis, not a state: upstream asks for a random piece, a non-zero code means it failed.
 CHECK = "check"
 
 
-# The value is the word: the admin prints it straight from the column, so a state is
-# named the same in the database, in an exported csv and in a url filter.
+# The value is the word: the admin prints the column as is, so db, csv and url filters agree.
 class SlotState(str, Enum):
     CLOSED = "closed"
     NOT_PAID = "not_paid"
@@ -66,8 +61,7 @@ class BagState(str, Enum):
     CONFIRMED = "confirmed"
 
 
-# Trouble is: nobody holds it, or nobody is paid to. "partial" stays out - part of the
-# swarm still confirms it - and so do "closed" and "not_hired", where nothing is failing.
+# Nobody holds it or nobody is paid to; "partial", "closed" and "not_hired" are not trouble.
 PROBLEM_STATES = (
     BagState.NOT_CONFIRMED.value,
     BagState.UNAVAILABLE.value,
@@ -75,28 +69,23 @@ PROBLEM_STATES = (
 )
 
 
-# What the contract owes one provider for one span, in nanoton. The same formula lives as
-# SQL in db/repos/_money.py, where sums over many rows need it.
+# What one span owes one provider, in nanoton. The same formula as SQL in db/repos/_money.py.
 def bounty(size: int, rate: int, span: int) -> float:
     return rate * size * span / (SECONDS_IN_DAY * BYTES_IN_MB)
 
 
-# The two halves are priced differently on purpose: a contract keeps the rate it was
-# hired on, and half the network has bags on an old one, so pricing everything at today's
-# rate would put the ceiling below the income it bounds.
+# The halves are priced apart on purpose: contracts keep their old rate, free space takes today's.
 def income_ceiling(income: int, free: int, rate: int) -> int:
     return income + int(free / BYTES_IN_MB * rate * DAYS_IN_MONTH)
 
 
-# Clamped at the span: past it the slot turns "not_confirmed" on its own, and telling the
-# owner about the same silence twice helps nobody.
+# Clamped at the span: past it the slot turns not_confirmed on its own, no second alarm.
 def download_budget(size: int | None, span: int | None) -> timedelta:
     budget = SLOW_START + timedelta(seconds=(size or 0) / SLOW_RATE)
     return budget if span is None else min(budget, timedelta(seconds=span))
 
 
-# Branch order is the priority and what keeps the slices disjoint: what the owner decided
-# comes before a refused offer, then the provider's own work.
+# Branch order is the priority and keeps the slices disjoint: owner, then refusal, then work.
 def slot_state(
     slot: "BagSlotModel",
     bag: "BagModel",
@@ -115,16 +104,14 @@ def slot_state(
     proof_age = _age(slot.last_proof_at, now)
     hired_age = _age(slot.created_at, now)
 
-    # The contract pays for one span at most (storage.fc: if (span > max_span)
-    # span = max_span), so the debt does not grow with silence.
+    # The contract pays one span at most (storage.fc: if (span > max_span) span = max_span).
     payout_due = span <= (proof_age if slot.last_proof_at is not None else hired_age)
     if bag.unpaid_at is not None or (payout_due and balance < bounty(size, rate, span)):
         return SlotState.NOT_PAID
 
     if slot.last_proof_at is None:
-        # Never proved and the terms do not match: the job was never taken. The balance floor
-        # belongs here only - for a working slot a draining contract is not_paid instead. A
-        # term the catalogue leaves null is not a term the provider broke.
+        # Never proved and terms unmatched: the job was never taken. The balance floor belongs here
+        # only - on a working slot a draining contract is not_paid, and a null term is no breach.
         if (
             balance < PROVIDER_MIN_BALANCE
             or provider is None
@@ -133,21 +120,19 @@ def slot_state(
             or _over(span, provider.max_span)
             or _over(size, provider.max_bag_size_bytes)
             or _under(rate, provider.min_rate_per_mb_day)
+            or _unprofitable(size, rate, span)
         ):
             return SlotState.NOT_ACCEPTED
-        # The budget, never less than a day - not the span: a provider offering 1536 days
-        # kept thirty kilobytes "downloading" for a year.
+        # The budget, never less than a day: a 1536-day span kept 30 KB "downloading" for a year.
         if hired_age <= max(download_budget(size, span).total_seconds(), UNAVAILABLE_AGE.total_seconds()):
             return SlotState.DOWNLOADING
-        # A verdict on the swarm needs witnesses. Alone, the only thing that can be said
-        # is that this provider does not confirm.
+        # A verdict on the swarm needs witnesses; alone we can only say this one does not confirm.
         return SlotState.UNAVAILABLE if peers >= MIN_PEERS and proved == 0 else SlotState.NOT_CONFIRMED
 
     return SlotState.NOT_CONFIRMED if span * OVERDUE_FACTOR < proof_age else SlotState.CONFIRMED
 
 
-# Same idea one level up: what the owner decided first, then whether anyone is still
-# allowed to be downloading, and only then the verdict on those who finished.
+# Same order one level up: the owner's decision, then anyone still fetching, then the rest.
 def bag_state(bag: "BagModel", states: list[SlotState]) -> BagState:
     if bag.closed_at is not None:
         return BagState.CLOSED
@@ -155,12 +140,10 @@ def bag_state(bag: "BagModel", states: list[SlotState]) -> BagState:
         return BagState.NOT_PAID
     if not states:
         return BagState.NOT_HIRED
-    # A slot still inside its budget means the bag is being fetched, even when others
-    # already confirmed - calling that partial would report a shortage that is not one.
+    # One slot inside its budget means the bag is being fetched, not held in part.
     if SlotState.DOWNLOADING in states:
         return BagState.DOWNLOADING
-    # A whole-bag verdict needs every slot to agree: one provider of five falling behind is
-    # partial, not unconfirmed.
+    # A whole-bag verdict needs every slot to agree: one of five falling behind is partial.
     if SlotState.CONFIRMED not in states:
         return BagState.UNAVAILABLE if SlotState.UNAVAILABLE in states else BagState.NOT_CONFIRMED
     return BagState.PARTIAL if len(set(states)) > 1 else BagState.CONFIRMED
@@ -172,6 +155,11 @@ def _under(value: int, limit: int | None) -> bool:
 
 def _over(value: int, limit: int | None) -> bool:
     return limit is not None and value > limit
+
+
+# A term the catalogue leaves null arrives as zero, and zero is not a refusal.
+def _unprofitable(size: int, rate: int, span: int) -> bool:
+    return bool(size and rate and span) and bounty(size, rate, span) < BOUNTY_FLOOR
 
 
 def _age(moment: datetime | None, now: datetime) -> float:
