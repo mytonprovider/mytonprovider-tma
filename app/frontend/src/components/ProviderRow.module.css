@@ -15,7 +15,6 @@
   display: flex;
   align-items: center;
   gap: 5px;
-  min-height: var(--ts-row-head);
 }
 
 .pk {
@@ -140,19 +139,14 @@
 .shapeToggle {
   composes: shape;
   flex: none;
-  width: var(--ts-row-head);
-  height: var(--ts-row-head);
+  width: var(--ts-toggle);
+  height: var(--ts-toggle);
   border-radius: 50%;
 }
 
 .shapeKey {
   composes: shape;
   width: 128px;
-}
-
-.shapeStatus {
-  composes: shape;
-  border-radius: var(--ts-radius-seg);
 }
 
 .shapeLabel {

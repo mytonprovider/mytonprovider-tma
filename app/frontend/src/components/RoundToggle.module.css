@@ -3,8 +3,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
+  width: var(--ts-toggle);
+  height: var(--ts-toggle);
   padding: 0;
   border: none;
   background: none;

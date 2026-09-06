@@ -115,8 +115,8 @@ export function ProviderRow({ provider, onOpen, trailing }: ProviderRowProps) {
   );
 }
 
-// Six cells, the same six the loaded row shows.
-const PLACEHOLDER_CELLS = [0, 1, 2, 3, 4, 5];
+const CELL_COUNT = 6;
+// The spans need content to have a line box at all, and it must not be readable.
 const BLANK = "\u00a0";
 
 export function ProviderRowPlaceholder() {
@@ -125,10 +125,10 @@ export function ProviderRowPlaceholder() {
       <div className={styles.head}>
         <span className={styles.shapeToggle} />
         <span className={cx(styles.pk, styles.shapeKey)}>{BLANK}</span>
-        <span className={cx(styles.status, styles.shapeStatus)}>{BLANK}</span>
+        <span className={cx(styles.status, styles.shape)}>{BLANK}</span>
       </div>
       <div className={styles.cells}>
-        {PLACEHOLDER_CELLS.map((cell) => (
+        {Array.from({ length: CELL_COUNT }, (_, cell) => (
           <span key={cell} className={styles.cell}>
             <span className={cx(styles.cellLabel, styles.shapeLabel)}>{BLANK}</span>
             <span className={cx(styles.cellValue, styles.shapeValue)}>{BLANK}</span>

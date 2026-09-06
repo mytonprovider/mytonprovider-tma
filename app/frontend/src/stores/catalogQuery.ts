@@ -56,7 +56,7 @@ const FIRST_PAGE: Visible = { list: PAGE_SIZE, subs: PAGE_SIZE, fav: PAGE_SIZE }
 const SHAPE_KEY = "mtp-list-shape";
 const TABS: Tab[] = ["list", "subs", "fav"];
 
-export interface ListShape {
+interface ListShape {
   shown: number;
   total: number;
 }
@@ -82,7 +82,7 @@ function storedShapes(): Record<Tab, ListShape> {
       if (isCount(shown) && shown > 0 && isCount(total) && total >= shown) shapes[tab] = { shown, total };
     }
   } catch {
-    return COLD_SHAPE;
+    return shapes;
   }
   return shapes;
 }
