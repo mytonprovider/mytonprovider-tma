@@ -40,6 +40,8 @@ export const en = {
   no: "No",
   nameField: "Name",
   publicKey: "Public Key",
+  providerGoneTitle: "Provider is not in the catalog",
+  providerGoneDesc: "mytonprovider.org no longer serves data about this provider. Its contracts stay in the explorer.",
   address: "Wallet",
   span: "Span",
   maxBag: "Max bag size",

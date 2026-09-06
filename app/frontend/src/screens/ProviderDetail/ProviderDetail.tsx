@@ -1,4 +1,5 @@
 import { BottomBar } from "@/components/BottomBar";
+import { Callout } from "@/components/Callout";
 import { Card } from "@/components/Card";
 import { ConfirmSheet } from "@/components/ConfirmSheet";
 import { CopyRow } from "@/components/CopyRow";
@@ -117,14 +118,25 @@ export function ProviderDetail() {
   const provider = providers.find((p) => p.pubkey === pubkey);
   const rank = ranks[pubkey];
 
-  useEffect(() => {
-    if (status === "ready" && !provider) navigate("/", { replace: true });
-  }, [status, provider, navigate]);
-
   const back = () => navigate(-1);
 
   if (!provider) {
-    return <Screen header={<ScreenHeader title="" onBack={back} />}>{null}</Screen>;
+    // The catalogue lists working providers only, while a contract keeps the key of one
+    // that left: name that instead of bouncing the screen back to the home list.
+    return (
+      <Screen header={<ScreenHeader title="" onBack={back} />}>
+        {status === "ready" && (
+          <>
+            <Callout glyph="search" title={t.providerGoneTitle} desc={t.providerGoneDesc} iconColor="var(--ts-hint)" />
+            <Card>
+              <CopyRow label={t.publicKey} copyValue={pubkey}>
+                <span className={cx(styles.mono, styles.monoText)}>{shorten(pubkey, 12)}</span>
+              </CopyRow>
+            </Card>
+          </>
+        )}
+      </Screen>
+    );
   }
 
   const st = describeStatus(provider, t);

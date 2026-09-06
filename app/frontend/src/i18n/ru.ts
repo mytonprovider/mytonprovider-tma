@@ -43,6 +43,8 @@ export const ru: Dict = {
   no: "Нет",
   nameField: "Имя",
   publicKey: "Публичный ключ",
+  providerGoneTitle: "Провайдера нет в каталоге",
+  providerGoneDesc: "mytonprovider.org больше не отдаёт данные об этом провайдере. Контракты с ним остаются в обозревателе.",
   address: "Кошелёк",
   span: "Спан",
   maxBag: "Макс. размер файла",
