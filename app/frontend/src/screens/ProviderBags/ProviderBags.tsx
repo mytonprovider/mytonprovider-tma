@@ -100,9 +100,7 @@ export function ProviderBags() {
 
   const openBag = (bag: Bag) => (event: MouseEvent<HTMLDivElement>) => {
     if ((event.target as Element).closest("a")) return;
-    // The explorer lists this provider among the hired ones: opening him from there would
-    // just walk back to this screen, so it tells the explorer where the visit came from.
-    navigate(`/bags?q=${encodeURIComponent(bag.address)}`, { state: { from: pubkey } });
+    navigate(`/bags?q=${encodeURIComponent(bag.address)}`);
   };
 
   const view = provider ? describeStatus(provider, t) : null;

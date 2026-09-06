@@ -21,8 +21,9 @@ import { bagGatewayUrl } from "@/lib/gateway";
 import { reasonText, reasonTone, stateText, stateTone } from "@/lib/status";
 import { useCatalog } from "@/stores/catalog";
 import { useNames } from "@/stores/names";
+import { useSubscriptions } from "@/stores/subscriptions";
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
-import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import styles from "./BagExplorer.module.css";
 
 const REPORT_BOT = "https://t.me/bagidreport_bot";
@@ -112,16 +113,14 @@ export function BagExplorer() {
   const t = useT();
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const location = useLocation();
   const providers = useCatalog((s) => s.providers);
   const names = useNames((s) => s.providers);
+  const subscribed = useSubscriptions((s) => s.subscribed);
   const load = useCatalog((s) => s.load);
 
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<Status>("idle");
   const [results, setResults] = useState<BagPayload[]>([]);
-  // The provider whose bag list sent us here: his own card leads back where we came from.
-  const [origin, setOrigin] = useState((location.state as { from?: string } | null)?.from);
   const reqRef = useRef(0);
 
   useEffect(() => {
@@ -183,10 +182,7 @@ export function BagExplorer() {
         placeholder={t.bagSearchPlaceholder}
         enterKeyHint="search"
         invalid={status === "invalid"}
-        onEnter={() => {
-          setOrigin(undefined);
-          runSearch(query);
-        }}
+        onEnter={() => runSearch(query)}
         trailing={
           query && (
             <button
@@ -312,7 +308,11 @@ export function BagExplorer() {
             {single.providers.map((prov) => {
               const listed = providers.find((p) => p.pubkey === prov.pubkey);
               const off = mismatch(prov, listed);
-              const open = prov.pubkey === origin ? undefined : () => navigate(`/provider/${prov.pubkey}`);
+              // A provider of your own has his screen a tap away in Subscriptions, and opening
+              // him from here would only walk back to the list this bag was picked from.
+              const open = subscribed.includes(prov.pubkey)
+                ? undefined
+                : () => navigate(`/provider/${prov.pubkey}`);
               return (
                 <div key={prov.pubkey} className={cx(styles.providerCard, open && styles.press)} onClick={open}>
                   <div className={styles.title} style={{ color: SC[stateTone(prov.state)] }}>
