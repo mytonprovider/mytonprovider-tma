@@ -54,6 +54,18 @@
   composes: card from "../ProviderBags/ProviderBags.module.css";
 }
 
+/* The grouped card of the screen, plus the press the bag card and the provider row give. */
+.providerCard {
+  composes: card from "../../components/Card.module.css";
+  cursor: pointer;
+  transition: transform 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.providerCard:active {
+  transform: scale(0.985);
+}
+
 .title {
   composes: title from "../ProviderBags/ProviderBags.module.css";
 }

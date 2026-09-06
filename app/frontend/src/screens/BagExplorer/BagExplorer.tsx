@@ -306,7 +306,11 @@ export function BagExplorer() {
               const listed = providers.find((p) => p.pubkey === prov.pubkey);
               const off = mismatch(prov, listed);
               return (
-                <Card key={prov.pubkey}>
+                <div
+                  key={prov.pubkey}
+                  className={styles.providerCard}
+                  onClick={() => navigate(`/provider/${prov.pubkey}`)}
+                >
                   <div className={styles.title} style={{ color: SC[stateTone(prov.state)] }}>
                     {stateText(prov.state, t)}
                   </div>
@@ -375,7 +379,7 @@ export function BagExplorer() {
                   <CopyRow label={t.bagNonce} copyValue={prov.nonce ?? ""} divider compact>
                     <span className={styles.mono}>{prov.nonce ?? EMPTY}</span>
                   </CopyRow>
-                </Card>
+                </div>
               );
             })}
           </div>
