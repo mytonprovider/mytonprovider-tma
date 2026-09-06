@@ -54,15 +54,18 @@
   composes: card from "../ProviderBags/ProviderBags.module.css";
 }
 
-/* The grouped card of the screen, plus the press the bag card and the provider row give. */
 .providerCard {
   composes: card from "../../components/Card.module.css";
+}
+
+/* The press the bag card and the provider row give, kept off the card that leads nowhere. */
+.press {
   cursor: pointer;
   transition: transform 0.15s ease;
   -webkit-tap-highlight-color: transparent;
 }
 
-.providerCard:active {
+.press:active {
   transform: scale(0.985);
 }
 

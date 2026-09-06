@@ -15,13 +15,14 @@ import { useT } from "@/i18n";
 import type { Dict } from "@/i18n/types";
 import { ADDRESS_RE, RAW_RE, toUserFriendly } from "@/lib/address";
 import { SC } from "@/lib/colors";
+import { cx } from "@/lib/cx";
 import { EMPTY, ago, formatBytes, formatCount, formatPriceGram, formatTime, shorten } from "@/lib/format";
 import { bagGatewayUrl } from "@/lib/gateway";
 import { reasonText, reasonTone, stateText, stateTone } from "@/lib/status";
 import { useCatalog } from "@/stores/catalog";
 import { useNames } from "@/stores/names";
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import styles from "./BagExplorer.module.css";
 
 const REPORT_BOT = "https://t.me/bagidreport_bot";
@@ -111,6 +112,7 @@ export function BagExplorer() {
   const t = useT();
   const navigate = useNavigate();
   const [params] = useSearchParams();
+  const location = useLocation();
   const providers = useCatalog((s) => s.providers);
   const names = useNames((s) => s.providers);
   const load = useCatalog((s) => s.load);
@@ -118,6 +120,8 @@ export function BagExplorer() {
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<Status>("idle");
   const [results, setResults] = useState<BagPayload[]>([]);
+  // The provider whose bag list sent us here: his own card leads back where we came from.
+  const [origin, setOrigin] = useState((location.state as { from?: string } | null)?.from);
   const reqRef = useRef(0);
 
   useEffect(() => {
@@ -179,7 +183,10 @@ export function BagExplorer() {
         placeholder={t.bagSearchPlaceholder}
         enterKeyHint="search"
         invalid={status === "invalid"}
-        onEnter={() => runSearch(query)}
+        onEnter={() => {
+          setOrigin(undefined);
+          runSearch(query);
+        }}
         trailing={
           query && (
             <button
@@ -305,12 +312,9 @@ export function BagExplorer() {
             {single.providers.map((prov) => {
               const listed = providers.find((p) => p.pubkey === prov.pubkey);
               const off = mismatch(prov, listed);
+              const open = prov.pubkey === origin ? undefined : () => navigate(`/provider/${prov.pubkey}`);
               return (
-                <div
-                  key={prov.pubkey}
-                  className={styles.providerCard}
-                  onClick={() => navigate(`/provider/${prov.pubkey}`)}
-                >
+                <div key={prov.pubkey} className={cx(styles.providerCard, open && styles.press)} onClick={open}>
                   <div className={styles.title} style={{ color: SC[stateTone(prov.state)] }}>
                     {stateText(prov.state, t)}
                   </div>
