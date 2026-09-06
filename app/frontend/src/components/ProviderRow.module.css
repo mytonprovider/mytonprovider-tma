@@ -116,3 +116,49 @@
   color: var(--ts-hint);
   font-weight: 400;
 }
+
+/* The loading state of this very row: same classes, same line boxes, text made invisible.
+   Nothing to keep in sync, so the list cannot shift when the answer replaces it. */
+.placeholder {
+  composes: row;
+  composes: pulse from "../styles/anim.module.css";
+  cursor: default;
+}
+
+.placeholder:active {
+  transform: none;
+}
+
+.shape {
+  border-radius: 5px;
+  background: var(--ts-seg);
+  color: transparent;
+}
+
+.shapeToggle {
+  composes: shape;
+  flex: none;
+  width: var(--ts-row-head);
+  height: var(--ts-row-head);
+  border-radius: 50%;
+}
+
+.shapeKey {
+  composes: shape;
+  width: 128px;
+}
+
+.shapeStatus {
+  composes: shape;
+  border-radius: var(--ts-radius-seg);
+}
+
+.shapeLabel {
+  composes: shape;
+  width: 62%;
+}
+
+.shapeValue {
+  composes: shape;
+  width: 80%;
+}

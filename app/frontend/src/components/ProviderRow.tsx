@@ -8,6 +8,7 @@ import { describeStatus } from "@/lib/status";
 import { useCatalog } from "@/stores/catalog";
 import { useNames } from "@/stores/names";
 import { useKeyChars } from "@/hooks/useKeyChars";
+import { cx } from "@/lib/cx";
 import { type ReactNode, useRef } from "react";
 import styles from "./ProviderRow.module.css";
 
@@ -109,6 +110,30 @@ export function ProviderRow({ provider, onOpen, trailing }: ProviderRowProps) {
         )}
         {cell(t.workingTime, withUnits(working))}
         {cell(t.location, place)}
+      </div>
+    </div>
+  );
+}
+
+// Six cells, the same six the loaded row shows.
+const PLACEHOLDER_CELLS = [0, 1, 2, 3, 4, 5];
+const BLANK = "\u00a0";
+
+export function ProviderRowPlaceholder() {
+  return (
+    <div className={styles.placeholder}>
+      <div className={styles.head}>
+        <span className={styles.shapeToggle} />
+        <span className={cx(styles.pk, styles.shapeKey)}>{BLANK}</span>
+        <span className={cx(styles.status, styles.shapeStatus)}>{BLANK}</span>
+      </div>
+      <div className={styles.cells}>
+        {PLACEHOLDER_CELLS.map((cell) => (
+          <span key={cell} className={styles.cell}>
+            <span className={cx(styles.cellLabel, styles.shapeLabel)}>{BLANK}</span>
+            <span className={cx(styles.cellValue, styles.shapeValue)}>{BLANK}</span>
+          </span>
+        ))}
       </div>
     </div>
   );

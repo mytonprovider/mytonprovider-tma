@@ -1,10 +1,8 @@
 import { LoadMore } from "@/components/LoadMore";
-import { ProviderRow } from "@/components/ProviderRow";
+import { ProviderRow, ProviderRowPlaceholder } from "@/components/ProviderRow";
 import type { Provider } from "@/data/types";
 import type { ReactNode } from "react";
 import styles from "./Home.module.css";
-
-const CELL_COUNT = 6;
 
 interface ProviderPaneProps {
   hero?: ReactNode;
@@ -42,22 +40,7 @@ export function ProviderPane({
       {loading ? (
         <div className={styles.list}>
           {Array.from({ length: skeletonCount }, (_, index) => (
-            <div key={index} className={styles.skeleton}>
-              <div className={styles.skHead}>
-                <span className={styles.skToggle} />
-                <span className={styles.skKey} />
-                <span className={styles.skSpacer} />
-                <span className={styles.skStatus} />
-              </div>
-              <div className={styles.skCells}>
-                {Array.from({ length: CELL_COUNT }, (_, cell) => (
-                  <span key={cell} className={styles.skCell}>
-                    <span className={styles.skLabel} />
-                    <span className={styles.skValue} />
-                  </span>
-                ))}
-              </div>
-            </div>
+            <ProviderRowPlaceholder key={index} />
           ))}
         </div>
       ) : rows.length > 0 ? (
