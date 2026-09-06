@@ -91,6 +91,7 @@
 
 .cellLabel {
   font-size: 11.5px;
+  line-height: 13px;
   color: var(--ts-hint);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -100,6 +101,7 @@
 .cellValue {
   margin-top: 2px;
   font-size: 14px;
+  line-height: 17px;
   font-weight: 600;
   color: var(--ts-value);
   font-variant-numeric: tabular-nums;

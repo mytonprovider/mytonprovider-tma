@@ -9,7 +9,8 @@
   --ts-font-mono: Menlo, "SF Mono", ui-monospace, monospace;
 
   --ts-status-w: 148px;
-  --ts-row-head: 21px;
+  /* The head of a provider row is as tall as its round toggle. */
+  --ts-row-head: 30px;
 
   --ts-radius-card: 12px;
   --ts-radius-group: 10px;
