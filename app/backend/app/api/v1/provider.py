@@ -139,7 +139,8 @@ class BagsResponse(BaseModel):
     total: int
 
 
-BAGS_PAGE_SIZE = 8
+# The whole bucket goes to the screen at once; the cap guards a network ten times bigger.
+BAGS_LIMIT = 2000
 STATE_PATTERN = f"^(all|{CHECK}|{'|'.join(state.value for state in SlotState)})$"
 
 
@@ -334,12 +335,10 @@ def _rounded(value: float | None) -> float | None:
 @router.get("/{pubkey}/bags")
 async def provider_bags(
     state: str = Query("all", pattern=STATE_PATTERN),
-    q: str | None = Query(None, max_length=64),
-    offset: int = Query(0, ge=0),
     access: OwnerAccess = Depends(require_access),
     session: AsyncSession = Depends(get_session),
 ) -> BagsResponse:
-    rows, total = await BagSlotRepo(session).slice(access.provider.pubkey, state, BAGS_PAGE_SIZE, offset, q)
+    rows, total = await BagSlotRepo(session).slice(access.provider.pubkey, state, BAGS_LIMIT)
     items = [
         BagOut(
             bag_id=row.bag_id,

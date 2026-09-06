@@ -7,7 +7,7 @@ import { LoadMore } from "@/components/LoadMore";
 import { ProviderHeader } from "@/components/ProviderHeader";
 import { Screen } from "@/components/Screen";
 import { StatusDot } from "@/components/StatusDot";
-import { backend, type Bag, type BagFilter } from "@/data/backend";
+import type { Bag, BagFilter } from "@/data/backend";
 import { useT } from "@/i18n";
 import type { DictStringKey } from "@/i18n/types";
 import { toUserFriendly } from "@/lib/address";
@@ -16,8 +16,9 @@ import { EMPTY, ago, formatBytes, shorten } from "@/lib/format";
 import { bagGatewayUrl } from "@/lib/gateway";
 import { describeStatus, filterColor, reasonText, reasonTone, stateText, stateTone } from "@/lib/status";
 import { useCatalog } from "@/stores/catalog";
+import { bucketKey, useProviderBags } from "@/stores/providerBags";
 import { type MouseEvent, useEffect, useState } from "react";
-import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import styles from "./ProviderBags.module.css";
 
 const TITLES: Record<BagFilter, DictStringKey> = {
@@ -33,8 +34,6 @@ const TITLES: Record<BagFilter, DictStringKey> = {
 };
 
 const PAGE_SIZE = 8;
-const SKELETON_FALLBACK = 3;
-const SEARCH_DEBOUNCE = 300;
 
 function readState(value: string | null): BagFilter {
   return value != null && value !== "all" && value in TITLES ? (value as BagFilter) : "all";
@@ -45,58 +44,42 @@ export function ProviderBags() {
   const navigate = useNavigate();
   const { pubkey = "" } = useParams();
   const [params] = useSearchParams();
-  const location = useLocation();
   const state = readState(params.get("state"));
-  const expected = (location.state as { count?: number } | null)?.count;
-  const skeletons = Math.min(expected || SKELETON_FALLBACK, PAGE_SIZE);
 
   const providers = useCatalog((s) => s.providers);
-  const load = useCatalog((s) => s.load);
+  const loadCatalog = useCatalog((s) => s.load);
   const provider = providers.find((p) => p.pubkey === pubkey);
 
+  const bucket = useProviderBags((s) => s.buckets[bucketKey(pubkey, state)]);
+  const loadBucket = useProviderBags((s) => s.load);
+
   const [query, setQuery] = useState("");
-  const [items, setItems] = useState<Bag[]>([]);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const [visible, setVisible] = useState(PAGE_SIZE);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    void loadCatalog();
+  }, [loadCatalog]);
 
   useEffect(() => {
-    let alive = true;
-    setLoading(true);
-    const timer = setTimeout(() => {
-      void backend
-        .providerBags(pubkey, state, 0, query)
-        .then((res) => {
-          if (!alive) return;
-          setItems(res.items);
-          setTotal(res.total);
-        })
-        .catch(() => {
-          if (alive) setFailed(true);
-        })
-        .finally(() => {
-          if (alive) setLoading(false);
-        });
-    }, query ? SEARCH_DEBOUNCE : 0);
-    return () => {
-      alive = false;
-      clearTimeout(timer);
-    };
+    setFailed(false);
+    loadBucket(pubkey, state).catch(() => setFailed(true));
+  }, [pubkey, state, loadBucket]);
+
+  useEffect(() => {
+    setVisible(PAGE_SIZE);
   }, [pubkey, state, query]);
 
-  const loadMore = () => {
-    void backend
-      .providerBags(pubkey, state, items.length, query)
-      .then((res) => {
-        setItems((prev) => [...prev, ...res.items]);
-        setTotal(res.total);
-      })
-      .catch(() => {});
-  };
+  // The bucket is in memory, so the search filters it instead of asking the server: no
+  // debounce, no flicker, and a return from a bag costs nothing.
+  const term = query.trim().toLowerCase();
+  const items = bucket?.items ?? [];
+  const found = term
+    ? items.filter((bag) => (bag.bag_id ?? "").startsWith(term) || bag.address.toLowerCase().startsWith(term))
+    : items;
+  const rows = found.slice(0, visible);
+  const loading = bucket === undefined && !failed;
+  const truncated = bucket !== undefined && items.length < bucket.total;
 
   const openBag = (bag: Bag) => (event: MouseEvent<HTMLDivElement>) => {
     if ((event.target as Element).closest("a")) return;
@@ -131,22 +114,22 @@ export function ProviderBags() {
             <span className={styles.countBar} />
           </div>
           <div className={styles.list}>
-            {Array.from({ length: skeletons }, (_, i) => (
+            {Array.from({ length: PAGE_SIZE }, (_, i) => (
               <BagCardSkeleton key={i} />
             ))}
           </div>
         </>
-      ) : failed ? (
+      ) : failed && bucket === undefined ? (
         <Callout glyph="close" title={t.bagsLoadError} iconColor="var(--ts-hint)" />
-      ) : total === 0 ? (
+      ) : found.length === 0 ? (
         <Callout glyph="search" title={t.bagsNothingFound} iconColor="var(--ts-hint)" />
       ) : (
         <>
           <div className={styles.count}>
-            {t[TITLES[state]]} · {total}
+            {truncated ? t.showing(items.length, bucket.total) : `${t[TITLES[state]]} · ${found.length}`}
           </div>
           <div className={styles.list}>
-            {items.map((bag) => (
+            {rows.map((bag) => (
               <div key={bag.address} className={styles.card} onClick={openBag(bag)}>
                 <div className={styles.title} style={{ color: SC[stateTone(bag.state)] }}>
                   {stateText(bag.state, t)}
@@ -180,7 +163,7 @@ export function ProviderBags() {
               </div>
             ))}
           </div>
-          {items.length < total && <LoadMore onClick={loadMore} />}
+          {found.length > rows.length && <LoadMore onClick={() => setVisible((shown) => shown + PAGE_SIZE)} />}
         </>
       )}
     </Screen>

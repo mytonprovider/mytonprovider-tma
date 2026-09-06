@@ -280,10 +280,7 @@ export const backend = {
     request<StatsPayload>(`/api/v1/provider/${pubkey}/stats?period=${period}`),
   providerChart: (pubkey: string, range: string) =>
     request<ChartPayload>(`/api/v1/provider/${pubkey}/chart?range=${range}`),
-  providerBags: (pubkey: string, state: BagFilter, offset: number, query: string) =>
-    request<BagsPayload>(
-      `/api/v1/provider/${pubkey}/bags?state=${state}&offset=${offset}` +
-        (query ? `&q=${encodeURIComponent(query)}` : ""),
-    ),
+  providerBags: (pubkey: string, state: BagFilter) =>
+    request<BagsPayload>(`/api/v1/provider/${pubkey}/bags?state=${state}`),
   bag: (query: string) => request<{ bags: BagPayload[] }>(`/api/v1/bag/${encodeURIComponent(query)}`),
 };

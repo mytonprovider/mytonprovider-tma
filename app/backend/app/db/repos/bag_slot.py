@@ -2,7 +2,7 @@ from collections.abc import Sequence
 from datetime import datetime
 from typing import Any, NamedTuple
 
-from sqlalchemy import ColumnElement, Row, Select, delete, desc, func, or_, select, tuple_, update
+from sqlalchemy import ColumnElement, Row, Select, delete, desc, func, select, tuple_, update
 
 from app.bags import CHECK, DAYS_IN_MONTH, SlotState
 from app.db.models import BagModel, BagSlotModel, ProviderModel
@@ -274,22 +274,12 @@ class BagSlotRepo(BaseRepo[BagSlotModel]):
         )
         return (await self.session.execute(stmt)).all()
 
-    async def slice(
-        self,
-        pubkey: str,
-        state: str,
-        limit: int,
-        offset: int,
-        query: str | None = None,
-    ) -> tuple[Sequence[Row[Any]], int]:
+    async def slice(self, pubkey: str, state: str, limit: int) -> tuple[Sequence[Row[Any]], int]:
         where: list[ColumnElement[bool]] = [BagSlotModel.provider_pubkey == pubkey]
         if state == CHECK:
             where.append(BagSlotModel.reason != 0)
         elif state in SLOT_STATES:
             where.append(BagSlotModel.state == state)
-        if query:
-            term = f"{query.strip().lower()}%"
-            where.append(or_(BagModel.bag_id.like(term), func.lower(BagModel.address).like(term)))
 
         total = await self.session.scalar(
             select(func.count())
@@ -314,9 +304,10 @@ class BagSlotRepo(BaseRepo[BagSlotModel]):
             )
             .join(BagModel, BagModel.address == BagSlotModel.address)
             .where(*where)
-            .order_by(BagSlotModel.created_at.desc())
+            # Slots of one contract share a second, so the address decides the order between
+            # them: without it the same row can arrive twice or not at all.
+            .order_by(BagSlotModel.created_at.desc(), BagSlotModel.address)
             .limit(limit)
-            .offset(offset)
         )
         result = await self.session.execute(stmt)
         return result.all(), total or 0

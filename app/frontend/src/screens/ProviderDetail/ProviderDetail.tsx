@@ -248,7 +248,7 @@ export function ProviderDetail() {
               className={cx(styles.statusFooter, checksOpen && styles.statusFooterActive)}
               onClick={
                 checksOpen
-                  ? () => navigate(`/provider/${pubkey}/bags?state=check`, { state: { count: st.problems } })
+                  ? () => navigate(`/provider/${pubkey}/bags?state=check`)
                   : undefined
               }
             >

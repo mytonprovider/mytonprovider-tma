@@ -149,7 +149,7 @@ export function OwnerPanel({ provider, pubkey, children }: { provider: Provider;
             {BAG_ROWS.map(({ state, label }) => {
               const count = bags[state];
               const color = filterColor(state);
-              const open = () => navigate(`/provider/${pubkey}/bags?state=${state}`, { state: { count } });
+              const open = () => navigate(`/provider/${pubkey}/bags?state=${state}`);
               return (
                 <div
                   key={state}
