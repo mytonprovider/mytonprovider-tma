@@ -89,8 +89,9 @@
   min-width: 0;
 }
 
-/* Both lines of a cell stay single and keep a fixed line box: a wrapped value would make
-   the row taller than the skeleton standing in for it, and the list would shift on reload. */
+/* Both lines of a cell keep a fixed box, so the row is exactly as tall as the placeholder
+   standing in for it while it loads. The value is pinned by height too: the unit span inside
+   it grows the line box to 18px on its own, and the list would shift by 2px a card. */
 .cellLabel {
   font-size: 11.5px;
   line-height: 13px;
@@ -102,6 +103,7 @@
 
 .cellValue {
   margin-top: 2px;
+  height: 17px;
   font-size: 14px;
   line-height: 17px;
   font-weight: 600;
