@@ -1,7 +1,3 @@
-# Run with: python -m tests.test_bags
-# Every branch of both ladders gets a case, plus the boundaries that decide between
-# neighbouring branches. No database: the functions take plain objects.
-
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -70,68 +66,78 @@ def state(
     return slot_state(slot_row, bag_row or bag(), known, peers, proved, NOW)
 
 
-def check(name: str, got: Any, want: Any) -> None:
-    assert got == want, f"{name}: got {got}, want {want}"
+def test_proof_confirms_the_slot() -> None:
+    assert state(slot(proof_ago=60)) == SlotState.CONFIRMED
+    assert state(slot()) == SlotState.DOWNLOADING
 
 
-def slots() -> None:
-    check("fresh proof", state(slot(proof_ago=60)), SlotState.CONFIRMED)
-    check("just hired", state(slot()), SlotState.DOWNLOADING)
-    check("closed wins over everything", state(slot(proof_ago=60), bag(closed_at=NOW)), SlotState.CLOSED)
-    check("unpaid flag", state(slot(proof_ago=60), bag(unpaid_at=NOW)), SlotState.NOT_PAID)
+def test_closed_and_unpaid_come_before_everything() -> None:
+    assert state(slot(proof_ago=60), bag(closed_at=NOW)) == SlotState.CLOSED
+    assert state(slot(proof_ago=60), bag(unpaid_at=NOW)) == SlotState.NOT_PAID
 
     # payout is due once the span has passed; an empty contract cannot cover it
     empty = bag(balance=STORAGE_RESERVE + 1)
-    check("payout due, nothing left", state(slot(proof_ago=SPAN + 1), empty), SlotState.NOT_PAID)
-    check("payout not due yet", state(slot(proof_ago=SPAN - 1), empty), SlotState.CONFIRMED)
+    assert state(slot(proof_ago=SPAN + 1), empty) == SlotState.NOT_PAID
+    assert state(slot(proof_ago=SPAN - 1), empty) == SlotState.CONFIRMED
+    # a contract that ran dry is not paid before it is anything else, even without a proof
+    assert state(slot(hired_ago=SPAN + 1), empty) == SlotState.NOT_PAID
 
-    # a slot that never proved and could not have been taken
+
+def test_offer_the_provider_would_have_refused() -> None:
     poor = bag(balance=STORAGE_RESERVE + PROVIDER_MIN_BALANCE - 1)
-    check("contract under the floor", state(slot(), poor), SlotState.NOT_ACCEPTED)
-    check("provider unknown", state(slot(), provider_row=None), SlotState.NOT_ACCEPTED)
-    check("provider delisted", state(slot(), provider_row=provider(listed=False)), SlotState.NOT_ACCEPTED)
-    check("span below minimum", state(slot(span=60), provider_row=provider(min_span=3600)), SlotState.NOT_ACCEPTED)
-    check("span above maximum", state(slot(span=10**9), provider_row=provider(max_span=SPAN)), SlotState.NOT_ACCEPTED)
-    check("bag too big", state(slot(), provider_row=provider(max_bag_size_bytes=1)), SlotState.NOT_ACCEPTED)
-    check("rate too low", state(slot(rate=1), provider_row=provider(min_rate_per_mb_day=2)), SlotState.NOT_ACCEPTED)
-    check("bounty under the floor", state(slot(rate=1), provider_row=provider()), SlotState.NOT_ACCEPTED)
-    # the catalogue leaves terms null; an unknown one cannot mean the offer was refused
-    check("terms unknown", state(slot(), provider_row=provider(min_span=None, max_span=None)), SlotState.DOWNLOADING)
-    check(
-        "rate unknown",
-        state(slot(rate=None), provider_row=provider(min_rate_per_mb_day=None)),
-        SlotState.DOWNLOADING,
-    )
+    assert state(slot(), poor) == SlotState.NOT_ACCEPTED
+    assert state(slot(), provider_row=None) == SlotState.NOT_ACCEPTED
+    assert state(slot(), provider_row=provider(listed=False)) == SlotState.NOT_ACCEPTED
+    assert state(slot(span=60), provider_row=provider(min_span=3600)) == SlotState.NOT_ACCEPTED
+    assert state(slot(span=10**9), provider_row=provider(max_span=SPAN)) == SlotState.NOT_ACCEPTED
+    assert state(slot(), provider_row=provider(max_bag_size_bytes=1)) == SlotState.NOT_ACCEPTED
+    assert state(slot(rate=1), provider_row=provider(min_rate_per_mb_day=2)) == SlotState.NOT_ACCEPTED
+    assert state(slot(rate=1), provider_row=provider()) == SlotState.NOT_ACCEPTED
 
-    # nobody fetched it: needs a swarm, no proofs at all, and well past the budget
-    dead_age = int(UNAVAILABLE_AGE.total_seconds()) + 3600
-    check("swarm fetched nothing", state(slot(hired_ago=dead_age), peers=MIN_PEERS), SlotState.UNAVAILABLE)
-    # past the budget the fetch is over whatever the swarm looks like; witnesses only
-    # decide the word - "nobody fetched it" needs them, "does not confirm" does not
-    check("alone, so only stalled", state(slot(hired_ago=dead_age), peers=1), SlotState.NOT_CONFIRMED)
-    check("someone proved it", state(slot(hired_ago=dead_age), peers=MIN_PEERS, proved=1), SlotState.NOT_CONFIRMED)
-    check("alone past the span", state(slot(hired_ago=SPAN + 1), peers=1), SlotState.NOT_CONFIRMED)
+
+def test_unknown_figures_do_not_refuse_the_offer() -> None:
+    # a missing size cannot refuse an offer, a missing balance is an empty contract
+    assert state(slot(), bag(size=None)) == SlotState.DOWNLOADING
+    assert state(slot(), bag(balance=None)) == SlotState.NOT_ACCEPTED
+    # the catalogue leaves terms null; an unknown one cannot mean the offer was refused
+    assert state(slot(), provider_row=provider(min_span=None, max_span=None)) == SlotState.DOWNLOADING
+    assert state(slot(rate=None), provider_row=provider(min_rate_per_mb_day=None)) == SlotState.DOWNLOADING
+
+
+def test_budget_says_when_a_fetch_is_over() -> None:
+    assert download_budget(SIZE, 60) == timedelta(seconds=60)
+    # without a span there is nothing to clamp the budget with, so it stays the full fetch
+    assert download_budget(SIZE, None) > timedelta(seconds=60)
+
+    inside = int(download_budget(SIZE, SPAN).total_seconds()) - 60
+    assert state(slot(hired_ago=inside), peers=MIN_PEERS) == SlotState.DOWNLOADING
+    assert state(slot(hired_ago=SPAN + 1), peers=1) == SlotState.NOT_CONFIRMED
     # a span far longer than the budget no longer keeps a fetch alive: thirty kilobytes
     # offered a 1536-day span used to read as downloading for a year
-    check(
-        "huge span, tiny bag",
-        # the rate has to clear the bounty floor, or the offer is refused before the budget
-        state(slot(span=132_710_400, hired_ago=dead_age, rate=1_200_000), bag(size=30_000)),
-        SlotState.NOT_CONFIRMED,
-    )
-    inside = int(download_budget(SIZE, SPAN).total_seconds()) - 60
-    check("still inside the budget", state(slot(hired_ago=inside), peers=MIN_PEERS), SlotState.DOWNLOADING)
+    huge_span = slot(span=132_710_400, hired_ago=int(UNAVAILABLE_AGE.total_seconds()) + 3600, rate=1_200_000)
+    assert state(huge_span, bag(size=30_000)) == SlotState.NOT_CONFIRMED
 
+
+def test_peers_decide_unavailable_from_not_confirmed() -> None:
+    # past the budget the fetch is over whatever the swarm looks like; "nobody fetched it"
+    # needs witnesses, "does not confirm" does not
+    dead_age = int(UNAVAILABLE_AGE.total_seconds()) + 3600
+    assert state(slot(hired_ago=dead_age), peers=MIN_PEERS) == SlotState.UNAVAILABLE
+    assert state(slot(hired_ago=dead_age), peers=1) == SlotState.NOT_CONFIRMED
+    assert state(slot(hired_ago=dead_age), peers=MIN_PEERS, proved=1) == SlotState.NOT_CONFIRMED
+
+
+def test_grace_holds_until_the_first_proof() -> None:
     # before the first proof the border is the grace, not the span; after it, one and
     # a half spans of silence
     grace = int(max(download_budget(SIZE, SPAN).total_seconds(), UNAVAILABLE_AGE.total_seconds()))
-    check("no proof past the grace", state(slot(hired_ago=grace + 1)), SlotState.NOT_CONFIRMED)
-    check("no proof at the grace", state(slot(hired_ago=grace - 1)), SlotState.DOWNLOADING)
-    check("proof past 1.5 spans", state(slot(proof_ago=int(SPAN * OVERDUE_FACTOR) + 1)), SlotState.NOT_CONFIRMED)
-    check("proof at 1.5 spans", state(slot(proof_ago=int(SPAN * OVERDUE_FACTOR) - 1)), SlotState.CONFIRMED)
+    assert state(slot(hired_ago=grace + 1)) == SlotState.NOT_CONFIRMED
+    assert state(slot(hired_ago=grace - 1)) == SlotState.DOWNLOADING
+    assert state(slot(proof_ago=int(SPAN * OVERDUE_FACTOR) + 1)) == SlotState.NOT_CONFIRMED
+    assert state(slot(proof_ago=int(SPAN * OVERDUE_FACTOR) - 1)) == SlotState.CONFIRMED
 
 
-def bags() -> None:
+def test_bag_state_needs_every_slot_to_agree() -> None:
     ok, down, stalled, gone, refused, unpaid = (
         SlotState.CONFIRMED,
         SlotState.DOWNLOADING,
@@ -140,29 +146,27 @@ def bags() -> None:
         SlotState.NOT_ACCEPTED,
         SlotState.NOT_PAID,
     )
-    check("closed contract", bag_state(bag(closed_at=NOW), [ok]), BagState.CLOSED)
-    check("unpaid flag", bag_state(bag(unpaid_at=NOW), [ok]), BagState.NOT_PAID)
-    check("one slot unpaid", bag_state(bag(), [ok, unpaid]), BagState.NOT_PAID)
-    check("nobody hired", bag_state(bag(), []), BagState.NOT_HIRED)
-    check("all confirmed", bag_state(bag(), [ok, ok]), BagState.CONFIRMED)
-    check("still fetching", bag_state(bag(), [down, down]), BagState.DOWNLOADING)
-
+    assert bag_state(bag(closed_at=NOW), [ok]) == BagState.CLOSED
+    assert bag_state(bag(closed_at=NOW), []) == BagState.CLOSED
+    assert bag_state(bag(unpaid_at=NOW), [ok]) == BagState.NOT_PAID
+    assert bag_state(bag(), [ok, unpaid]) == BagState.NOT_PAID
+    assert bag_state(bag(), []) == BagState.NOT_HIRED
+    assert bag_state(bag(), [ok, ok]) == BagState.CONFIRMED
+    assert bag_state(bag(), [down, down]) == BagState.DOWNLOADING
     # the case that made us reorder: time has not run out for one of them
-    check("fetching while others confirmed", bag_state(bag(), [ok, down]), BagState.DOWNLOADING)
-    check("time is up, part confirmed", bag_state(bag(), [ok, gone]), BagState.PARTIAL)
-    check("time is up, part refused", bag_state(bag(), [ok, refused]), BagState.PARTIAL)
-    # one provider out of several must not speak for the whole bag
-    check("confirmed but one is late", bag_state(bag(), [ok, stalled]), BagState.PARTIAL)
-    check("late one among many", bag_state(bag(), [ok, ok, ok, ok, stalled]), BagState.PARTIAL)
-    check("nobody fetched", bag_state(bag(), [gone, gone]), BagState.UNAVAILABLE)
-    check("none confirmed, all late", bag_state(bag(), [stalled, refused]), BagState.NOT_CONFIRMED)
+    assert bag_state(bag(), [ok, down]) == BagState.DOWNLOADING
+    assert bag_state(bag(), [gone, gone]) == BagState.UNAVAILABLE
+    assert bag_state(bag(), [stalled, refused]) == BagState.NOT_CONFIRMED
 
 
-def main() -> None:
-    slots()
-    bags()
-    print("state: all cases pass")
-
-
-if __name__ == "__main__":
-    main()
+def test_mixed_slots_read_partial() -> None:
+    ok, stalled, gone, refused = (
+        SlotState.CONFIRMED,
+        SlotState.NOT_CONFIRMED,
+        SlotState.UNAVAILABLE,
+        SlotState.NOT_ACCEPTED,
+    )
+    assert bag_state(bag(), [ok, gone]) == BagState.PARTIAL
+    assert bag_state(bag(), [ok, refused]) == BagState.PARTIAL
+    assert bag_state(bag(), [ok, stalled]) == BagState.PARTIAL
+    assert bag_state(bag(), [ok, ok, ok, ok, stalled]) == BagState.PARTIAL
