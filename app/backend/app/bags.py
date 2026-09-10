@@ -31,6 +31,10 @@ PROVIDER_MIN_BALANCE = 80_000_000
 # ErrLowBounty in the same daemon: below this the proof fees cost more than the span pays.
 BOUNTY_FLOOR = 50_000_000
 
+# The daemon keeps an unfunded bag one more span plus this, then deletes the files
+# (tonutils-storage-provider worker.go: LastProofAt + MaxSpan + 3600).
+DROP_GRACE = timedelta(hours=1)
+
 # A day splits "nobody fetched it" from "fetching slowly": 3 of 409 downloads took longer.
 UNAVAILABLE_AGE = timedelta(hours=24)
 
@@ -104,9 +108,9 @@ def slot_state(
     proof_age = _age(slot.last_proof_at, now)
     hired_age = _age(slot.created_at, now)
 
-    # The contract pays one span at most (storage.fc: if (span > max_span) span = max_span).
-    payout_due = span <= (proof_age if slot.last_proof_at is not None else hired_age)
-    if bag.unpaid_at is not None or (payout_due and balance < bounty(size, rate, span)):
+    # Not "the contract is empty": the daemon serves on until its own deadline.
+    past_deadline = span + DROP_GRACE.total_seconds() < (proof_age if slot.last_proof_at is not None else hired_age)
+    if past_deadline and balance < bounty(size, rate, span):
         return SlotState.NOT_PAID
 
     if slot.last_proof_at is None:
@@ -136,7 +140,7 @@ def slot_state(
 def bag_state(bag: "BagModel", states: list[SlotState]) -> BagState:
     if bag.closed_at is not None:
         return BagState.CLOSED
-    if bag.unpaid_at is not None or SlotState.NOT_PAID in states:
+    if SlotState.NOT_PAID in states:
         return BagState.NOT_PAID
     if not states:
         return BagState.NOT_HIRED

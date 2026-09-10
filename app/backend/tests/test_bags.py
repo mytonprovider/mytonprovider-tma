@@ -2,6 +2,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from app.bags import (
+    DROP_GRACE,
     MIN_PEERS,
     OVERDUE_FACTOR,
     PROVIDER_MIN_BALANCE,
@@ -22,6 +23,7 @@ SIZE = 4 * 1024**3
 # A rate a live contract carries: at the catalogue minimum the fixture falls under BOUNTY_FLOOR.
 RATE = 157_902
 PAID = STORAGE_RESERVE + int(bounty(SIZE, RATE, SPAN)) * 10
+GRACE = int(DROP_GRACE.total_seconds())
 
 
 # Real models, not stand-ins: a renamed column then breaks the test instead of the tick.
@@ -71,16 +73,22 @@ def test_proof_confirms_the_slot() -> None:
     assert state(slot()) == SlotState.DOWNLOADING
 
 
-def test_closed_and_unpaid_come_before_everything() -> None:
+def test_closed_comes_before_everything() -> None:
     assert state(slot(proof_ago=60), bag(closed_at=NOW)) == SlotState.CLOSED
-    assert state(slot(proof_ago=60), bag(unpaid_at=NOW)) == SlotState.NOT_PAID
 
-    # payout is due once the span has passed; an empty contract cannot cover it
+
+def test_unpaid_waits_for_the_deadline_the_daemon_keeps() -> None:
+    # the daemon deletes the files one span past the last proof plus an hour, not when
+    # the contract goes empty; before that it serves on and the slot is working
+    assert state(slot(proof_ago=60), bag(unpaid_at=NOW)) == SlotState.CONFIRMED
     empty = bag(balance=STORAGE_RESERVE + 1)
-    assert state(slot(proof_ago=SPAN + 1), empty) == SlotState.NOT_PAID
-    assert state(slot(proof_ago=SPAN - 1), empty) == SlotState.CONFIRMED
-    # a contract that ran dry is not paid before it is anything else, even without a proof
-    assert state(slot(hired_ago=SPAN + 1), empty) == SlotState.NOT_PAID
+    assert state(slot(proof_ago=SPAN + GRACE + 1), empty) == SlotState.NOT_PAID
+    assert state(slot(proof_ago=SPAN + GRACE - 1), empty) == SlotState.CONFIRMED
+    assert state(slot(proof_ago=SPAN + 1), empty) == SlotState.CONFIRMED
+    # money still covers the payout, so the deadline alone means nothing
+    assert state(slot(proof_ago=SPAN + GRACE + 1)) == SlotState.CONFIRMED
+    # never proved: the deadline runs from the hire
+    assert state(slot(hired_ago=SPAN + GRACE + 1), empty) == SlotState.NOT_PAID
 
 
 def test_offer_the_provider_would_have_refused() -> None:
@@ -148,7 +156,6 @@ def test_bag_state_needs_every_slot_to_agree() -> None:
     )
     assert bag_state(bag(closed_at=NOW), [ok]) == BagState.CLOSED
     assert bag_state(bag(closed_at=NOW), []) == BagState.CLOSED
-    assert bag_state(bag(unpaid_at=NOW), [ok]) == BagState.NOT_PAID
     assert bag_state(bag(), [ok, unpaid]) == BagState.NOT_PAID
     assert bag_state(bag(), []) == BagState.NOT_HIRED
     assert bag_state(bag(), [ok, ok]) == BagState.CONFIRMED
