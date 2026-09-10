@@ -4,10 +4,12 @@ from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.alerts import DEFAULT_THRESHOLDS, RULES, AlertType, BaseRule
-from app.bot import notify
+from app.bags import SlotState
+from app.bot import notify, render
 from app.db import session_factory
 from app.db.models import ProviderHistoryModel, ProviderModel, UserModel
 from app.db.repos import AlertRepo, ProviderHistoryRepo, StateRepo, SubscriptionRepo
+from app.db.repos.state import SlotMove
 from app.utils import utcnow
 from app.workers._base import BaseWorker
 from app.workers.sync_providers import SyncProvidersWorker
@@ -26,10 +28,12 @@ class CheckAlertsWorker(BaseWorker):
     previous: dict[str, ProviderHistoryModel | None]
     pending_since: dict[tuple[int, str, str], datetime]
     notified_restart: set[tuple[int, str, str]]
+    primed: bool
 
     def __init__(self) -> None:
         self.pending_since = {}
         self.notified_restart = set()
+        self.primed = False
 
     async def run(self) -> None:
         # Every rule judges telemetry, and after a downtime longer than LOST_AGE the age
@@ -39,10 +43,16 @@ class CheckAlertsWorker(BaseWorker):
         async with session_factory() as session:
             # States age with the clock, so they are refreshed on the same minute tick
             # that decides whether to alert.
-            slots, bags = await StateRepo(session).refresh()
+            moved, bags = await StateRepo(session).refresh()
             await session.commit()
-            if slots or bags:
-                logger.debug("states moved: %s slots, %s bags", slots, bags)
+            if moved or bags:
+                logger.debug("states moved: %s slots, %s bags", len(moved), bags)
+            # The first tick judges verdicts written by whatever ran before, so a changed
+            # ladder would announce every slot it moved. Speak from the second tick on.
+            if self.primed:
+                await self._notify_moves(session, moved)
+                await session.commit()
+            self.primed = True
             self.session = session
             self.alert_repo = AlertRepo(session)
             self.subscription_repo = SubscriptionRepo(session)
@@ -56,6 +66,24 @@ class CheckAlertsWorker(BaseWorker):
                 await self._process(row.UserModel, row.ProviderModel)
             await session.commit()
         logger.debug("checked %d subscriptions", len(rows))
+
+    async def _notify_moves(self, session: AsyncSession, moved: list[SlotMove]) -> None:
+        unpaid, closed = SlotState.NOT_PAID.value, SlotState.CLOSED.value
+        events = {
+            AlertType.BAG_UNPAID: [m for m in moved if m.after == unpaid],
+            # A contract the owner closed leaves not_paid too, and that is not good news.
+            AlertType.BAG_REFILLED: [m for m in moved if m.before == unpaid and m.after != closed],
+        }
+        for alert_type, moves in events.items():
+            by_provider: dict[str, list[render.Bag]] = {}
+            for move in moves:
+                bag = move.bag
+                if bag.bag_id is None:
+                    continue
+                item = render.Bag(bag_id=bag.bag_id, address=bag.address, owner=bag.owner_address, size=bag.size)
+                by_provider.setdefault(move.pubkey, []).append(item)
+            for pubkey, items in by_provider.items():
+                await notify.bags(session, pubkey, alert_type, items)
 
     async def _process(self, user: UserModel, provider: ProviderModel) -> None:
         enabled = set(user.alert_types)

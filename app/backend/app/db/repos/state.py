@@ -1,6 +1,6 @@
 from collections import defaultdict
 from collections.abc import Iterator
-from typing import Any
+from typing import Any, NamedTuple
 
 from sqlalchemy import select, tuple_, update
 
@@ -10,6 +10,14 @@ from app.db.repos._base import BaseRepo
 from app.utils import utcnow
 
 CHUNK = 100
+
+
+# The bag rides along: the caller renders a message from it and the table is already here.
+class SlotMove(NamedTuple):
+    pubkey: str
+    bag: BagModel
+    before: str
+    after: str
 
 
 def _chunks(keys: list[Any]) -> Iterator[list[Any]]:
@@ -23,7 +31,7 @@ class StateRepo(BaseRepo[BagSlotModel]):
     # States age with the clock, so the whole picture is rebuilt at once rather than
     # patched per row: loading and computing costs about 110 ms on 13k slots, and only
     # the rows whose verdict changed are written back.
-    async def refresh(self) -> tuple[int, int]:
+    async def refresh(self) -> tuple[list[SlotMove], int]:
         slots = (await self.session.execute(select(BagSlotModel))).scalars().all()
         bags = {bag.address: bag for bag in (await self.session.execute(select(BagModel))).scalars().all()}
         providers = {p.pubkey: p for p in (await self.session.execute(select(ProviderModel))).scalars().all()}
@@ -37,6 +45,7 @@ class StateRepo(BaseRepo[BagSlotModel]):
         now = utcnow()
         by_bag: dict[str, list[SlotState]] = defaultdict(list)
         slot_moves: dict[str, list[tuple[str, str]]] = defaultdict(list)
+        moved: list[SlotMove] = []
         for slot in slots:
             bag = bags.get(slot.address)
             if bag is None:
@@ -47,6 +56,7 @@ class StateRepo(BaseRepo[BagSlotModel]):
             by_bag[slot.address].append(state)
             if slot.state != state.value:
                 slot_moves[state.value].append((slot.address, slot.provider_pubkey))
+                moved.append(SlotMove(slot.provider_pubkey, bag, slot.state, state.value))
 
         bag_moves: dict[str, list[str]] = defaultdict(list)
         for address, bag in bags.items():
@@ -72,4 +82,4 @@ class StateRepo(BaseRepo[BagSlotModel]):
                     .values(state=state_value)
                     .execution_options(synchronize_session=False)
                 )
-        return sum(len(keys) for keys in slot_moves.values()), sum(len(keys) for keys in bag_moves.values())
+        return moved, sum(len(keys) for keys in bag_moves.values())

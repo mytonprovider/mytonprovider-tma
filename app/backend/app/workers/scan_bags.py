@@ -112,9 +112,7 @@ async def _apply(
     proofs: list[tuple[str, str, datetime | None]] = []
     seen: set[SlotKey] = set()
     models: dict[str, BagModel] = {}
-    ran_out: set[str] = set()
     closed: set[str] = set()
-    refilled: set[str] = set()
     for account in accounts:
         address = book.get(account.address)
         if address is None:
@@ -144,16 +142,16 @@ async def _apply(
         model.merkle_hash = data.merkle_hash.as_hex
         model.key_len = data.key_len
         model.balance = account.balance
+        # An observation for the admin and for the closing below; the verdict is the state.
         unpaid_at = _unpaid_at(model.unpaid_at, account.balance)
         if unpaid_at is None:
             model.closed_at = None
-            if model.unpaid_at is not None and address not in pending:
-                refilled.add(address)
             pending.discard(address)
         elif model.unpaid_at is None:
             pending.add(address)
         elif address in pending:
-            (closed if model.closed_at is not None else ran_out).add(address)
+            if model.closed_at is not None:
+                closed.add(address)
             pending.discard(address)
         model.unpaid_at = unpaid_at
         models[address] = model
@@ -204,9 +202,7 @@ async def _apply(
             AlertType.BAG_ADDED: _by_provider(fresh, models),
             AlertType.BAG_STORED: _by_provider(stored, models),
             AlertType.BAG_REMOVED: _by_provider(gone, models),
-            AlertType.BAG_UNPAID: _by_provider([pair for pair in seen if pair[0] in ran_out], models),
             AlertType.BAG_CLOSED: _by_provider([pair for pair in seen if pair[0] in closed], models),
-            AlertType.BAG_REFILLED: _by_provider([pair for pair in seen if pair[0] in refilled], models),
         },
         scanned=scanned,
         dropped=dropped,
@@ -237,7 +233,6 @@ async def _notify_slow() -> None:
 
 
 # The channel carries three events only: bag appeared, line-up moved, owner closed it.
-# Money in and out is for the provider's own subscribers, so ran_out and refilled stay out.
 def _changes(
     seen: set[SlotKey],
     fresh: list[SlotKey],
