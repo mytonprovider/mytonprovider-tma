@@ -85,9 +85,6 @@ class UserView(BaseAdminView):
     def can_delete(self, request: Request) -> bool:
         return False
 
-    async def repr(self, obj: Any, request: Request) -> str:
-        return obj.fullname or (f"@{obj.username}" if obj.username else str(obj.id))
-
     @row_action(
         name="ban",
         text="Ban",
@@ -121,3 +118,6 @@ class UserView(BaseAdminView):
         if name in ("ban", "unban"):
             return obj.id not in config.ADMIN_IDS and (obj.banned_at is None) == (name == "ban")
         return await super().is_row_action_allowed_for_obj(request, name, obj)
+
+    async def repr(self, obj: Any, request: Request) -> str:
+        return obj.fullname or (f"@{obj.username}" if obj.username else str(obj.id))
