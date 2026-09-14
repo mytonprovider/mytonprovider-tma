@@ -35,7 +35,7 @@ class BagView(BaseReadOnlyView):
         AmountField("chunk_size", fmt=size),
         StringField("merkle_hash", formatter={RequestAction.LIST: hash_formatter}),
         IntegerField("key_len", label="Merkle depth"),
-        dt_field("unpaid_at", "Not paid since"),
+        dt_field("unpaid_at", "Out of funds since"),
         dt_field("created_at", "Created"),
         dt_field("updated_at", "Updated"),
     )
