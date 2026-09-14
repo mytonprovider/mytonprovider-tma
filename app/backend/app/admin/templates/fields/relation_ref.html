@@ -1,0 +1,9 @@
+{% set outside = field.external(data) if field.external else None %}
+<span class="d-inline-flex align-items-center gap-2 text-nowrap">
+    <a href="{{ data['_meta']['detailUrl'] }}">{{ data['_meta']['repr'] }}</a>
+    {% if outside %}
+        <a href="{{ outside }}" target="_blank" title="open outside">
+            <i class="fa-solid fa-arrow-up-right-from-square fa-xs"></i>
+        </a>
+    {% endif %}
+</span>

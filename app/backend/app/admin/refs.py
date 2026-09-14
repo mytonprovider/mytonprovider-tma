@@ -1,8 +1,9 @@
 from collections.abc import Sequence
+from typing import Any
 from urllib.parse import quote
 
 from app import config
-from app.admin.fields import RefField
+from app.admin.fields import RefField, RelationRefField
 from app.admin.format import WALLET_FORMATTER
 from app.bags import CHECK
 from app.utils import address_url, short_address, short_key, user_friendly
@@ -35,6 +36,10 @@ def explorer_url(address: str) -> str:
 
 def telegram_url(username: str) -> str:
     return f"https://t.me/{username}"
+
+
+def user_telegram_url(user: dict[str, Any]) -> str | None:
+    return telegram_url(user["username"]) if user.get("username") else None
 
 
 def owner_href(address: str) -> str:
@@ -128,6 +133,10 @@ def wallet_ref(name: str = "wallet_address") -> RefField:
 
 def user_ref(name: str = "user_id") -> RefField:
     return RefField(name, view_key="users")
+
+
+def user_relation_ref(name: str = "user") -> RelationRefField:
+    return RelationRefField(name, key="users", label="User", external=user_telegram_url)
 
 
 def username_ref(name: str = "username") -> RefField:

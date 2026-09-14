@@ -2,7 +2,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
-from starlette_admin.fields import DateTimeField, FloatField, IntegerField, StringField, TagsField
+from starlette_admin.fields import DateTimeField, FloatField, HasOne, IntegerField, StringField, TagsField
 
 from app.admin.format import reason_label, reason_tone, state_tone
 
@@ -28,6 +28,15 @@ class RefField(StringField):
     copy_to_clipboard: bool | None = True
     list_template: str = "fields/ref.html"
     detail_template: str = "fields/ref.html"
+
+
+# RefField for a related row: the name opens the row in the panel, the icon beside it goes
+# outside. A relation hands over the whole row, so the outside target is built from it.
+@dataclass
+class RelationRefField(HasOne):
+    external: Callable[[dict[str, Any]], str | None] | None = None
+    list_template: str = "fields/relation_ref.html"
+    detail_template: str = "fields/relation_ref.html"
 
 
 @dataclass
