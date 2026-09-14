@@ -12,6 +12,7 @@ from app.db.repos import AlertRepo, ProviderHistoryRepo, StateRepo, Subscription
 from app.db.repos.state import SlotMove
 from app.utils import utcnow
 from app.workers._base import BaseWorker
+from app.workers.scan_bags import ScanBagsWorker
 from app.workers.sync_providers import SyncProvidersWorker
 
 logger = logging.getLogger(__name__)
@@ -47,12 +48,12 @@ class CheckAlertsWorker(BaseWorker):
             await session.commit()
             if moved or bags:
                 logger.debug("states moved: %s slots, %s bags", len(moved), bags)
-            # The first tick judges verdicts written by whatever ran before, so a changed
-            # ladder would announce every slot it moved. Speak from the second tick on.
+            # Stay quiet until one tick has judged fresh chain data: after a downtime the first
+            # bag scan refills stale balances, and every slot it moves is ours to catch up, not news.
             if self.primed:
                 await self._notify_moves(session, moved)
                 await session.commit()
-            self.primed = True
+            self.primed = bool(ScanBagsWorker.last_success)
             self.session = session
             self.alert_repo = AlertRepo(session)
             self.subscription_repo = SubscriptionRepo(session)
