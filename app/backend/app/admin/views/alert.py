@@ -2,7 +2,7 @@ from collections.abc import Sequence
 from typing import Any
 
 from starlette.requests import Request
-from starlette_admin.fields import EnumField
+from starlette_admin.fields import EnumField, HasOne
 
 from app.admin.fields import dt_field
 from app.admin.refs import provider_ref, user_ref
@@ -21,10 +21,12 @@ class AlertView(BaseReadOnlyView):
     list_template = "alerts_list.html"
     fields: Sequence[Any] = (
         user_ref(),
+        HasOne("user", key="users", label="User"),
         provider_ref("provider_pubkey"),
         EnumField("alert_type", choices=ALERT_TYPE_CHOICES),
         dt_field("notified_at", "Notified"),
     )
+    exclude_fields_from_export = ("user",)
     sortable_fields = ("user_id", "provider_pubkey", "alert_type", "notified_at")
     searchable_fields = ("user_id", "provider_pubkey", "alert_type", "notified_at")
     fields_default_sort = (("notified_at", True), ("user_id", False))
