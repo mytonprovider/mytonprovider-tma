@@ -178,12 +178,7 @@ async def _apply(
         for row in await slot_repo.by_addresses([book[a.address] for a in accounts if a.address in book])
     }
     known = set(prior)
-    # A slot first seen already holding a proof is a new hire, not a finished download.
-    stored = [
-        SlotKey(address, pubkey)
-        for address, pubkey, proof_at in proofs
-        if proof_at is not None and prior.get(SlotKey(address, pubkey), proof_at) is None
-    ]
+    stored = _stored(proofs, prior, models)
     fresh = sorted(seen - known)
     gone = sorted(known - seen)
     if slots:
@@ -267,6 +262,30 @@ def _changes(
             )
         )
     return changes
+
+
+# A slot first seen with a proof counts as downloaded when the proof is newer than our row: a fast
+# provider proves before the scan comes round. A contract new to us holding an older proof was found
+# late, so its whole line-up stays quiet - providers prove days apart and nothing else tells them.
+def _stored(
+    proofs: list[tuple[str, str, datetime | None]],
+    prior: dict[SlotKey, datetime | None],
+    models: dict[str, BagModel],
+) -> list[SlotKey]:
+    had = {address for address, _ in prior}
+    old = {
+        address
+        for address, _, proof_at in proofs
+        if address not in had and proof_at is not None and proof_at < models[address].created_at
+    }
+    stored = []
+    for address, pubkey, proof_at in proofs:
+        key = SlotKey(address, pubkey)
+        if proof_at is None or prior.get(key) is not None:
+            continue
+        if key in prior or (address not in old and proof_at >= models[address].created_at):
+            stored.append(key)
+    return stored
 
 
 def _by_provider(pairs: list[SlotKey], models: dict[str, BagModel]) -> dict[str, list[render.Bag]]:
