@@ -64,7 +64,7 @@ async def channels(
     if item.owner is None:
         return
     for channel in await AlertChannelRepo(session).notifiable(user_friendly(item.owner)):
-        text = render.channel_bag(channel.lang, "tonviewer", t(channel.lang, title_code), item, members, added, removed)
+        text = render.channel_bag(channel.lang, "actonscan", t(channel.lang, title_code), item, members, added, removed)
         result = await sender.send_message(channel.chat_id, text)
         logger.info("channel %s for %s: %s", channel.chat_id, item.bag_id[:8], result)
 

@@ -65,5 +65,5 @@ export function toUserFriendly(address: string): string {
 }
 
 export function explorerAddressUrl(address: string, explorer: Explorer): string {
-  return explorer === "tonscan" ? `https://tonscan.org/address/${address}` : `https://tonviewer.com/${address}`;
+  return explorer === "tonscan" ? `https://tonscan.org/address/${address}` : `https://actonscan.com/address/${address}`;
 }

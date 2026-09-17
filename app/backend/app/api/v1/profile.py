@@ -34,7 +34,7 @@ ALERT_TYPES = tuple(alert_type.value for alert_type in AlertType)
 NAME_MAX = 32
 
 Theme: TypeAlias = Literal["auto", "dark", "light"]
-Explorer: TypeAlias = Literal["tonviewer", "tonscan"]
+Explorer: TypeAlias = Literal["actonscan", "tonscan"]
 
 
 class AlertsSettings(BaseModel):

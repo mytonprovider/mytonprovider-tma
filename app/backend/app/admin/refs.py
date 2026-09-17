@@ -31,7 +31,7 @@ def bag_gateway_url(bag_id: str) -> str:
 
 
 def explorer_url(address: str) -> str:
-    return address_url("tonviewer", address)
+    return address_url("actonscan", address)
 
 
 def telegram_url(username: str) -> str:

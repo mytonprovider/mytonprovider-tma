@@ -4,7 +4,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
 export type Theme = "dark" | "light";
-export type Explorer = "tonviewer" | "tonscan";
+export type Explorer = "actonscan" | "tonscan";
 
 interface SettingsState {
   theme: Theme;
@@ -24,7 +24,7 @@ export const useSettings = create<SettingsState>()(
       themeAuto: true,
       lang: "en",
       langAuto: true,
-      explorer: "tonviewer",
+      explorer: "actonscan",
       setTheme: (theme) => set({ theme, themeAuto: false }),
       setLang: (lang) => set({ lang, langAuto: false }),
       setExplorer: (explorer) => set({ explorer }),

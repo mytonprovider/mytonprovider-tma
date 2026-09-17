@@ -56,13 +56,13 @@ def format_space(value: int, sign: bool = False) -> str:
 
 
 ADDRESS_EXPLORERS = {
+    "actonscan": "https://actonscan.com/address/{address}",
     "tonscan": "https://tonscan.org/address/{address}",
-    "tonviewer": "https://tonviewer.com/{address}",
 }
 
 
 def address_url(explorer: str, address: str) -> str:
-    return ADDRESS_EXPLORERS.get(explorer, ADDRESS_EXPLORERS["tonviewer"]).format(address=address)
+    return ADDRESS_EXPLORERS.get(explorer, ADDRESS_EXPLORERS["actonscan"]).format(address=address)
 
 
 def spaced(value: int) -> str:

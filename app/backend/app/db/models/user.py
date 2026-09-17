@@ -17,7 +17,7 @@ class UserModel(BaseModel):
     photo_url: Mapped[str | None] = mapped_column(String(255))
     lang: Mapped[str] = mapped_column(String(8), nullable=False, default="en")
     theme: Mapped[str] = mapped_column(String(8), nullable=False, default="auto")
-    explorer: Mapped[str] = mapped_column(String(16), nullable=False, default="tonviewer")
+    explorer: Mapped[str] = mapped_column(String(16), nullable=False, default="actonscan")
 
     favorites: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
     trusted_addresses: Mapped[list] = mapped_column(JSON, nullable=False, default=list, server_default="[]")
