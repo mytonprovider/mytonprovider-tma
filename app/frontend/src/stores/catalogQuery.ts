@@ -1,4 +1,5 @@
 import type { CatalogFilters, Sort, SortField } from "@/data/types";
+import { COLD_ROWS, PAGE_SIZE } from "@/lib/paging";
 import { create } from "zustand";
 
 export type Tab = "list" | "subs" | "fav";
@@ -27,8 +28,6 @@ const EMPTY_FILTERS: CatalogFilters = {
   telemetry: null,
   stableOnly: false,
 };
-
-export const PAGE_SIZE = 10;
 
 const START_TAB_KEY = "mtp-start-tab";
 
@@ -62,9 +61,9 @@ interface ListShape {
 }
 
 const COLD_SHAPE: Record<Tab, ListShape> = {
-  list: { shown: PAGE_SIZE, total: 0 },
-  subs: { shown: PAGE_SIZE, total: 0 },
-  fav: { shown: PAGE_SIZE, total: 0 },
+  list: { shown: COLD_ROWS, total: 0 },
+  subs: { shown: COLD_ROWS, total: 0 },
+  fav: { shown: COLD_ROWS, total: 0 },
 };
 
 function isCount(value: unknown): value is number {

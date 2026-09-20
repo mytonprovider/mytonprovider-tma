@@ -14,6 +14,7 @@ import { toUserFriendly } from "@/lib/address";
 import { SC } from "@/lib/colors";
 import { EMPTY, ago, formatBytes, shorten } from "@/lib/format";
 import { bagGatewayUrl } from "@/lib/gateway";
+import { BAGS_PAGE_SIZE } from "@/lib/paging";
 import { describeStatus, filterColor, reasonText, reasonTone, stateText, stateTone } from "@/lib/status";
 import { useCatalog } from "@/stores/catalog";
 import { bucketKey, useProviderBags } from "@/stores/providerBags";
@@ -32,8 +33,6 @@ const TITLES: Record<BagFilter, DictStringKey> = {
   not_accepted: "bagsNotAccepted",
   check: "bagsCheck",
 };
-
-const PAGE_SIZE = 8;
 
 function readState(value: string | null): BagFilter {
   return value != null && value !== "all" && value in TITLES ? (value as BagFilter) : "all";
@@ -54,7 +53,7 @@ export function ProviderBags() {
   const loadBucket = useProviderBags((s) => s.load);
 
   const [query, setQuery] = useState("");
-  const [visible, setVisible] = useState(PAGE_SIZE);
+  const [visible, setVisible] = useState(BAGS_PAGE_SIZE);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
@@ -67,7 +66,7 @@ export function ProviderBags() {
   }, [pubkey, state, loadBucket]);
 
   useEffect(() => {
-    setVisible(PAGE_SIZE);
+    setVisible(BAGS_PAGE_SIZE);
   }, [pubkey, state, query]);
 
   // The bucket is in memory, so the search filters it instead of asking the server: no
@@ -114,7 +113,7 @@ export function ProviderBags() {
             <span className={styles.countBar} />
           </div>
           <div className={styles.list}>
-            {Array.from({ length: PAGE_SIZE }, (_, i) => (
+            {Array.from({ length: BAGS_PAGE_SIZE }, (_, i) => (
               <BagCardSkeleton key={i} />
             ))}
           </div>
@@ -163,7 +162,7 @@ export function ProviderBags() {
               </div>
             ))}
           </div>
-          {found.length > rows.length && <LoadMore onClick={() => setVisible((shown) => shown + PAGE_SIZE)} />}
+          {found.length > rows.length && <LoadMore onClick={() => setVisible((shown) => shown + BAGS_PAGE_SIZE)} />}
         </>
       )}
     </Screen>
