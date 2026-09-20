@@ -10,18 +10,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app import config
 from app.alerts import THRESHOLD_MAX, THRESHOLD_MIN, AlertType
 from app.api.auth import (
-    current_user_id,
-    deny_banned,
+    current_user,
     hash_telemetry_pass,
     record_provider_failure,
     reset_subscribe_attempts,
     throttle_provider_attempts,
     throttle_subscribe_attempts,
-    unauthorized,
 )
 from app.db import get_session
 from app.db.models import SubscriptionModel, UserModel
-from app.db.repos import AlertChannelRepo, ProviderRepo, SubscriptionRepo, UserRepo
+from app.db.repos import AlertChannelRepo, ProviderRepo, SubscriptionRepo
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +59,9 @@ class ChannelOut(BaseModel):
 
 class ProfileResponse(BaseModel):
     is_admin: bool
+    fullname: str | None
+    username: str | None
+    photo_url: str | None
     language_code: str
     theme: Theme
     explorer: Explorer
@@ -93,17 +94,6 @@ class SubscribeRequest(BaseModel):
 
 class BellPatch(BaseModel):
     alerts_enabled: bool
-
-
-async def current_user(
-    user_id: int = Depends(current_user_id),
-    session: AsyncSession = Depends(get_session),
-) -> UserModel:
-    user = await UserRepo(session).get(user_id)
-    if user is None:
-        raise unauthorized("Unknown user")
-    deny_banned(user)
-    return user
 
 
 def _clean_name(value: str) -> str:
@@ -139,6 +129,9 @@ async def profile_response(session: AsyncSession, user: UserModel) -> ProfileRes
     channels = await AlertChannelRepo(session).invitable(list(user.trusted_addresses), user.lang)
     return ProfileResponse(
         is_admin=user.id in config.ADMIN_IDS,
+        fullname=user.fullname,
+        username=user.username,
+        photo_url=user.photo_url,
         language_code=user.lang,
         theme=user.theme,
         explorer=user.explorer,

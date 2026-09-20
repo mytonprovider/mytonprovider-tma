@@ -2,6 +2,7 @@ import asyncio
 import base64
 import hashlib
 import logging
+import secrets
 import time
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -10,16 +11,21 @@ import aiohttp
 import jwt
 from aiogram.utils.web_app import WebAppInitData, safe_parse_webapp_init_data
 from cachetools import TTLCache
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, Response, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import config
+from app.db import get_session
 from app.db.models import UserModel
-from app.db.repos import UserRepo
+from app.db.repos import SessionRepo, UserRepo
+from app.utils import utcnow
 
-SESSION_TTL = timedelta(days=3)
-INIT_DATA_MAX_AGE = timedelta(hours=1)
+SESSION_LIFETIME = timedelta(days=30)
+SEEN_THROTTLE = timedelta(hours=1)
+SESSION_COOKIE = "__Host-session"
+SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
+INIT_DATA_MAX_AGE = timedelta(hours=24)
 
 OIDC_ISSUER = "https://oauth.telegram.org"
 OIDC_AUTH_URL = "https://oauth.telegram.org/auth"
@@ -139,31 +145,75 @@ async def exchange_code(code: str, redirect_uri: str) -> str:
     return id_token
 
 
-def issue_session_token(user_id: int) -> str:
-    now = datetime.now(timezone.utc)
-    payload = {"sub": str(user_id), "iat": now, "exp": now + SESSION_TTL}
-    return jwt.encode(payload, config.JWT_SECRET, algorithm="HS256")
+def token_digest(token: str) -> str:
+    return hashlib.sha256(token.encode()).hexdigest()
 
 
-def read_session_token(token: str) -> int:
-    try:
-        payload = jwt.decode(
-            token,
-            config.JWT_SECRET,
-            algorithms=["HS256"],
-            options={"require": ["exp"]},
-        )
-        return int(payload["sub"])
-    except (jwt.PyJWTError, KeyError, TypeError, ValueError) as error:
-        raise unauthorized("Invalid session token") from error
+def session_alive(created_at: datetime, now: datetime) -> bool:
+    return now - created_at < SESSION_LIFETIME
 
 
-def current_user_id(
+async def open_session(session: AsyncSession, user_id: int) -> str:
+    repo = SessionRepo(session)
+    await repo.purge(utcnow() - SESSION_LIFETIME)
+    token = secrets.token_urlsafe(32)
+    await repo.create(token_hash=token_digest(token), user_id=user_id)
+    return token
+
+
+def set_session_cookie(response: Response, token: str) -> None:
+    response.set_cookie(
+        SESSION_COOKIE,
+        token,
+        max_age=int(SESSION_LIFETIME.total_seconds()),
+        httponly=True,
+        secure=True,
+        samesite="lax",
+    )
+
+
+def clear_session_cookie(response: Response) -> None:
+    response.delete_cookie(SESSION_COOKIE, httponly=True, secure=True, samesite="lax")
+
+
+def deny_foreign_origin(request: Request) -> None:
+    if request.method not in SAFE_METHODS and request.headers.get("origin") != config.WEBAPP_URL:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Foreign origin")
+
+
+async def find_session(session: AsyncSession, token: str) -> UserModel | None:
+    model = await SessionRepo(session).get(token_digest(token))
+    if model is None or not session_alive(model.created_at, utcnow()):
+        return None
+    user = await UserRepo(session).get(model.user_id)
+    if user is None:
+        return None
+    if user.last_seen_at is None or utcnow() - user.last_seen_at > SEEN_THROTTLE:
+        user.last_seen_at = utcnow()
+        await session.commit()
+    return user
+
+
+async def read_session(session: AsyncSession, token: str) -> UserModel:
+    user = await find_session(session, token)
+    if user is None:
+        raise unauthorized("Invalid session")
+    deny_banned(user)
+    return user
+
+
+async def current_user(
+    request: Request,
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer),
-) -> int:
-    if credentials is None:
-        raise unauthorized("Missing bearer token")
-    return read_session_token(credentials.credentials)
+    session: AsyncSession = Depends(get_session),
+) -> UserModel:
+    if credentials is not None:
+        return await read_session(session, credentials.credentials)
+    token = request.cookies.get(SESSION_COOKIE)
+    if token is None:
+        raise unauthorized("Missing session")
+    deny_foreign_origin(request)
+    return await read_session(session, token)
 
 
 def claims_user_id(claims: dict[str, Any]) -> int:

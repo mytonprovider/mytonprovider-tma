@@ -34,9 +34,9 @@ export function useLogin() {
     openTelegramLogin(lang)
       .then(async (auth) => {
         if (!auth) return;
-        const { token } = await backend.authWidget(auth.idToken);
+        await backend.authWidget(auth.idToken);
         login(fromWidgetClaims(auth.user));
-        useAuth.getState().setToken(token);
+        useAuth.getState().openSession();
         await hydrateFromServer(true);
         notify("success");
       })

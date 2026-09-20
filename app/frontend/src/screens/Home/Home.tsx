@@ -108,7 +108,7 @@ export function Home() {
         const rest = Math.max(0, RELOAD_SPIN_MS - (performance.now() - startedAt));
         reloadTimer.current = setTimeout(() => setSpinning(false), rest);
       });
-    if (useAuth.getState().token) {
+    if (useAuth.getState().hasSession) {
       hydrateFromServer().catch((error: unknown) => console.error("reload sync failed", error));
     }
   };

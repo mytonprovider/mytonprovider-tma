@@ -41,7 +41,7 @@ function applyTelegramLogin(): void {
 function registerFocusSync(): void {
   const revalidate = () => {
     void useCatalog.getState().load();
-    if (useAuth.getState().token) {
+    if (useAuth.getState().hasSession) {
       invalidateOwner();
       hydrateFromServer().catch((error: unknown) => console.error("focus sync failed", error));
     }

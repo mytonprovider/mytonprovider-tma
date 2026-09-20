@@ -1,13 +1,12 @@
 from collections.abc import Callable
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta
 
-import jwt
 import pytest
 from fastapi import HTTPException
 
-from app import config
-from app.api.auth import claims_user_id, hash_telemetry_pass, issue_session_token, read_session_token
+from app.api.auth import SESSION_LIFETIME, claims_user_id, hash_telemetry_pass, session_alive, token_digest
 from app.api.v1.profile import NAME_MAX, PUBKEY_RE, _clean_name, _clean_names
+from app.utils import utcnow
 
 KEY = "a" * 64
 
@@ -18,26 +17,18 @@ def rejects(call: Callable[[], object], status: int = 401) -> None:
     assert error.value.status_code == status
 
 
-def test_session_token_reads_back() -> None:
-    assert read_session_token(issue_session_token(42)) == 42
-    rejects(lambda: read_session_token("not-a-token"))
+def test_only_the_digest_of_a_token_is_stored() -> None:
+    assert token_digest("token") == token_digest("token")
+    assert token_digest("token") != token_digest("Token")
+    # sha256 in hex: the column holds 64 characters and never the token itself
+    assert len(token_digest("token")) == 64
 
 
-def test_token_signed_elsewhere_is_not_ours() -> None:
-    alive = datetime.now(timezone.utc) + timedelta(days=1)
-    forged = jwt.encode({"sub": "42", "exp": alive}, "a" * 32, algorithm="HS256")
+def test_session_dies_when_its_lifetime_runs_out() -> None:
+    now = utcnow()
 
-    rejects(lambda: read_session_token(forged))
-
-
-def test_expired_token_is_rejected() -> None:
-    stale = jwt.encode(
-        {"sub": "42", "exp": datetime.now(timezone.utc) - timedelta(seconds=1)},
-        config.JWT_SECRET,
-        algorithm="HS256",
-    )
-
-    rejects(lambda: read_session_token(stale))
+    assert session_alive(now - SESSION_LIFETIME + timedelta(minutes=1), now)
+    assert not session_alive(now - SESSION_LIFETIME, now)
 
 
 def test_telegram_sends_the_id_both_ways() -> None:

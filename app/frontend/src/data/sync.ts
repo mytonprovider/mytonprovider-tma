@@ -5,7 +5,7 @@ import { normalizeLang } from "@/i18n";
 import type { AlertKey, Lang } from "@/i18n/types";
 import { toUserFriendly } from "@/lib/address";
 import { useAlerts } from "@/stores/alerts";
-import { useAuth } from "@/stores/auth";
+import { makeAuthUser, useAuth } from "@/stores/auth";
 import { useSettings } from "@/stores/settings";
 import { useFavorites } from "@/stores/favorites";
 import { useNames } from "@/stores/names";
@@ -16,7 +16,7 @@ import { useTrusted } from "@/stores/trusted";
 let chain: Promise<unknown> = Promise.resolve();
 
 function queue(label: string, action: () => Promise<unknown>): void {
-  if (!useAuth.getState().token) return;
+  if (!useAuth.getState().hasSession) return;
   chain = chain.then(action).catch((error: unknown) => console.error(`${label} failed`, error));
 }
 
@@ -64,6 +64,10 @@ export async function hydrateFromServer(adoptPreferences = false): Promise<void>
   }
   useAuth.getState().setBanned(false);
   useAuth.getState().setAdmin(profile.is_admin);
+  const [first, ...rest] = (profile.fullname ?? profile.username ?? "").split(" ");
+  if (first) {
+    useAuth.getState().login(makeAuthUser(first, rest.join(" "), profile.username, profile.photo_url));
+  }
   if (!localStorage.getItem(MIGRATED_KEY)) {
     const favorites = useFavorites.getState().favorites;
     const trusted = useTrusted.getState().addresses;

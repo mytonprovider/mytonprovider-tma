@@ -61,6 +61,9 @@ export interface ChannelEntry {
 
 interface ProfilePayload {
   is_admin: boolean;
+  fullname: string | null;
+  username: string | null;
+  photo_url: string | null;
   language_code: string;
   theme: ServerTheme;
   explorer: Explorer;
@@ -240,16 +243,16 @@ export const backend = {
       body: JSON.stringify({ init_data: initDataRaw }),
     }),
   authWidget: (idToken: string) =>
-    request<{ token: string }>("/api/v1/auth/widget", {
+    request<void>("/api/v1/auth/widget", {
       method: "POST",
       body: JSON.stringify({ id_token: idToken }),
     }),
   authCode: (code: string, redirectUri: string) =>
-    request<{ token: string; name: string | null; username: string | null; photo_url: string | null }>(
+    request<{ name: string | null; username: string | null; photo_url: string | null }>(
       "/api/v1/auth/code",
       { method: "POST", body: JSON.stringify({ code, redirect_uri: redirectUri }) },
     ),
-  refresh: () => request<{ token: string }>("/api/v1/auth/refresh", { method: "POST" }),
+  logout: () => request<void>("/api/v1/auth/logout", { method: "POST" }),
   profile: () => request<ProfilePayload>("/api/v1/profile"),
   patchProfile: (patch: ProfilePatch) =>
     request<ProfilePayload>("/api/v1/profile", { method: "PATCH", body: JSON.stringify(patch) }),

@@ -7,10 +7,9 @@ from starlette.responses import RedirectResponse
 from starlette_admin.contrib.sqla import Admin
 
 from app import config
-from app.admin.auth import TelegramAuthProvider
+from app.admin.auth import STATE_TTL, TelegramAuthProvider
 from app.admin.dashboards import HomeView, OwnerView
 from app.admin.views import VIEWS
-from app.api import auth
 from app.db import session_factory
 
 admin = Admin(
@@ -26,7 +25,7 @@ admin = Admin(
             SessionMiddleware,
             secret_key=config.JWT_SECRET,
             path="/admin",
-            max_age=int(auth.SESSION_TTL.total_seconds()),
+            max_age=int(STATE_TTL.total_seconds()),
             https_only=not config.DEV,
         )
     ],
