@@ -1,5 +1,5 @@
 import { init } from "@/init";
-import { backButton, hapticFeedback, initData, openLink, retrieveLaunchParams, retrieveRawInitData, settingsButton } from "@tma.js/sdk-react";
+import { backButton, hapticFeedback, initData, openLink, postEvent, retrieveLaunchParams, retrieveRawInitData, settingsButton } from "@tma.js/sdk-react";
 
 interface TelegramUser {
   id: number;
@@ -12,9 +12,9 @@ interface TelegramUser {
 
 type NotificationType = "error" | "success" | "warning";
 
+type SetupMethod = "web_app_setup_back_button" | "web_app_setup_settings_button";
+
 interface TelegramButton {
-  show: { (): void; isAvailable: () => boolean };
-  hide: { (): void; isAvailable: () => boolean };
   onClick: (listener: VoidFunction) => VoidFunction;
 }
 
@@ -51,9 +51,7 @@ export function initTelegram(): void {
   } catch (error) {
     console.error("Telegram SDK initialization failed", error);
   }
-  try {
-    if (backButton.hide.isAvailable()) backButton.hide();
-  } catch {}
+  setup("web_app_setup_back_button", false);
 }
 
 export function getTelegramUser(): TelegramUser | null {
@@ -76,50 +74,46 @@ export function getStartParam(): string | null {
   return launchStartParam || null;
 }
 
-interface ButtonState {
-  handlers: (() => void)[];
-  off: () => void;
+const buttonHandlers = new WeakMap<TelegramButton, (() => void)[]>();
+
+// The SDK (3.0.8) posts a setup event only when its own state changed, and a webview reload
+// restores that state from storage without posting it, so show() and hide() fall silent while
+// the client keeps the header on "back". The state goes out on every change instead.
+function setup(method: SetupMethod, visible: boolean): void {
+  try {
+    postEvent(method, { is_visible: visible });
+  } catch {}
 }
 
-const buttonStates = new WeakMap<TelegramButton, ButtonState>();
-
-function bindButton(button: TelegramButton, handler: () => void): () => void {
-  let state = buttonStates.get(button);
-  if (!state) {
-    state = { handlers: [], off: () => {} };
-    buttonStates.set(button, state);
-  }
-  const current = state;
-  const wasEmpty = current.handlers.length === 0;
-  current.handlers.push(handler);
-  if (wasEmpty) {
+function bindButton(button: TelegramButton, method: SetupMethod, handler: () => void): () => void {
+  let stack = buttonHandlers.get(button);
+  if (!stack) {
+    const created: (() => void)[] = [];
     try {
-      if (button.show.isAvailable()) button.show();
-      current.off = button.onClick(() => current.handlers[current.handlers.length - 1]?.());
+      button.onClick(() => created[created.length - 1]?.());
     } catch {
-      current.handlers.pop();
       return () => {};
     }
+    buttonHandlers.set(button, created);
+    stack = created;
   }
+  const handlers = stack;
+  if (handlers.length === 0) setup(method, true);
+  handlers.push(handler);
   return () => {
-    const index = current.handlers.lastIndexOf(handler);
+    const index = handlers.lastIndexOf(handler);
     if (index < 0) return;
-    current.handlers.splice(index, 1);
-    if (current.handlers.length > 0) return;
-    try {
-      current.off();
-      if (button.hide.isAvailable()) button.hide();
-    } catch {}
-    current.off = () => {};
+    handlers.splice(index, 1);
+    if (handlers.length === 0) setup(method, false);
   };
 }
 
 export function bindBackButton(handler: () => void): () => void {
-  return bindButton(backButton, handler);
+  return bindButton(backButton, "web_app_setup_back_button", handler);
 }
 
 export function bindSettingsButton(handler: () => void): () => void {
-  return bindButton(settingsButton, handler);
+  return bindButton(settingsButton, "web_app_setup_settings_button", handler);
 }
 
 export function notify(type: NotificationType): void {
