@@ -1,5 +1,5 @@
 import { init } from "@/init";
-import { backButton, hapticFeedback, initData, openLink, postEvent, retrieveLaunchParams, retrieveRawInitData, settingsButton } from "@tma.js/sdk-react";
+import { backButton, hapticFeedback, initData, miniApp, openLink, postEvent, retrieveLaunchParams, retrieveRawInitData, settingsButton } from "@tma.js/sdk-react";
 
 interface TelegramUser {
   id: number;
@@ -85,12 +85,20 @@ function setup(method: SetupMethod, visible: boolean): void {
   } catch {}
 }
 
-function bindButton(button: TelegramButton, method: SetupMethod, handler: () => void): () => void {
+function closeApp(): void {
+  try {
+    if (miniApp.close.isAvailable()) miniApp.close();
+  } catch {}
+}
+
+function bindButton(button: TelegramButton, method: SetupMethod, handler: () => void, onEmpty?: () => void): () => void {
   let stack = buttonHandlers.get(button);
   if (!stack) {
     const created: (() => void)[] = [];
     try {
-      button.onClick(() => created[created.length - 1]?.());
+      // The listener stays for the session: a client left on "back" still sends the press, and
+      // swallowing it looked like a dead "Close" button.
+      button.onClick(() => (created[created.length - 1] ?? onEmpty)?.());
     } catch {
       return () => {};
     }
@@ -109,7 +117,7 @@ function bindButton(button: TelegramButton, method: SetupMethod, handler: () => 
 }
 
 export function bindBackButton(handler: () => void): () => void {
-  return bindButton(backButton, "web_app_setup_back_button", handler);
+  return bindButton(backButton, "web_app_setup_back_button", handler, closeApp);
 }
 
 export function bindSettingsButton(handler: () => void): () => void {
