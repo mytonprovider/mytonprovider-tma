@@ -9,7 +9,6 @@ async function finishRedirectLogin(code: string): Promise<void> {
   const auth = useAuth.getState();
   const result = await backend.authCode(code, redirectUri());
   auth.login(makeAuthUser(result.name ?? "Telegram User", null, result.username, result.photo_url));
-  auth.openSession();
 }
 
 export async function establishSession(): Promise<void> {
