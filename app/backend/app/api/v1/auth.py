@@ -83,7 +83,7 @@ async def auth_code(
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
-async def logout(
+async def auth_logout(
     response: Response,
     user: UserModel = Depends(auth.current_user),
     session: AsyncSession = Depends(get_session),
