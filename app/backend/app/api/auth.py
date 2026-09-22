@@ -12,7 +12,6 @@ import jwt
 from aiogram.utils.web_app import WebAppInitData, safe_parse_webapp_init_data
 from cachetools import TTLCache
 from fastapi import Depends, HTTPException, Request, Response, status
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import config
@@ -38,7 +37,6 @@ SUBSCRIBE_MAX_ATTEMPTS = 5
 SUBSCRIBE_ATTEMPT_WINDOW = 15 * 60
 
 logger = logging.getLogger(__name__)
-bearer = HTTPBearer(auto_error=False)
 jwks_client = jwt.PyJWKClient(OIDC_JWKS_URL)
 
 subscribe_attempts = TTLCache(maxsize=10_000, ttl=SUBSCRIBE_ATTEMPT_WINDOW)
@@ -231,14 +229,11 @@ async def read_session(session: AsyncSession, token: str) -> UserModel:
 
 async def current_user(
     request: Request,
-    credentials: HTTPAuthorizationCredentials | None = Depends(bearer),
     session: AsyncSession = Depends(get_session),
 ) -> UserModel:
     init_data = init_data_header(request)
     if init_data is not None:
         return await user_from_init_data(session, init_data)
-    if credentials is not None:
-        return await read_session(session, credentials.credentials)
     token = request.cookies.get(SESSION_COOKIE)
     if token is None:
         raise unauthorized("Missing session")

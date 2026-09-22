@@ -6,13 +6,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api import auth
 from app.db import get_session
 from app.db.models import UserModel
-from app.db.repos import SessionRepo, UserRepo
+from app.db.repos import SessionRepo
 
 router = APIRouter(prefix="/auth")
-
-
-class TelegramRequest(BaseModel):
-    init_data: str = Field(max_length=8192)
 
 
 class WidgetRequest(BaseModel):
@@ -24,32 +20,10 @@ class CodeRequest(BaseModel):
     redirect_uri: str = Field(max_length=2048)
 
 
-class TokenResponse(BaseModel):
-    token: str
-
-
 class AuthResponse(BaseModel):
     name: str | None = None
     username: str | None = None
     photo_url: str | None = None
-
-
-@router.post("/telegram")
-async def auth_telegram(body: TelegramRequest, session: AsyncSession = Depends(get_session)) -> TokenResponse:
-    parsed = auth.verify_init_data(body.init_data)
-    assert parsed.user is not None
-    fullname = " ".join(filter(None, [parsed.user.first_name, parsed.user.last_name]))
-    user = await UserRepo(session).visited(
-        parsed.user.id,
-        parsed.user.language_code,
-        parsed.user.username,
-        fullname,
-        parsed.user.photo_url,
-    )
-    auth.deny_banned(user)
-    token = await auth.open_session(session, user.id)
-    await session.commit()
-    return TokenResponse(token=token)
 
 
 @router.post("/widget", status_code=status.HTTP_204_NO_CONTENT)
