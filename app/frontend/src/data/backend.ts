@@ -1,4 +1,4 @@
-import { useAuth } from "@/stores/auth";
+import { getInitDataRaw, isInTelegram } from "@/lib/telegram";
 import type { Explorer, Theme } from "@/stores/settings";
 
 const BACKEND_BASE = import.meta.env.VITE_BACKEND_BASE ?? "";
@@ -16,13 +16,15 @@ export class BackendError extends Error {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const token = useAuth.getState().token;
+  // Telegram signs fresh init data on every launch, so it travels as the credential itself and
+  // the Mini App keeps no session: the browser is the only client that needs a cookie.
+  const initData = isInTelegram() ? getInitDataRaw() : null;
   const response = await fetch(`${BACKEND_BASE}${path}`, {
     ...init,
     signal: AbortSignal.timeout?.(TIMEOUT_MS),
     headers: {
       "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(initData ? { Authorization: `tma ${initData}` } : {}),
       ...init?.headers,
     },
   });
@@ -237,11 +239,6 @@ export interface BagPayload {
 }
 
 export const backend = {
-  authTelegram: (initDataRaw: string) =>
-    request<{ token: string }>("/api/v1/auth/telegram", {
-      method: "POST",
-      body: JSON.stringify({ init_data: initDataRaw }),
-    }),
   authWidget: (idToken: string) =>
     request<void>("/api/v1/auth/widget", {
       method: "POST",

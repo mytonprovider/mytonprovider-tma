@@ -18,10 +18,8 @@ export async function establishSession(): Promise<void> {
     if (code) {
       await finishRedirectLogin(code);
     } else if (isInTelegram()) {
-      const raw = getInitDataRaw();
-      if (!raw) return;
-      const { token } = await backend.authTelegram(raw);
-      auth.openSession(token);
+      if (!getInitDataRaw()) return;
+      auth.openSession();
     }
     await hydrateFromServer(true);
     if (!isInTelegram()) auth.openSession();

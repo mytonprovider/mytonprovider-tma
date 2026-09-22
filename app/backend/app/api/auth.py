@@ -24,6 +24,7 @@ from app.utils import utcnow
 SESSION_LIFETIME = timedelta(days=30)
 SEEN_THROTTLE = timedelta(hours=1)
 SESSION_COOKIE = "__Host-session"
+INIT_DATA_SCHEME = "tma"
 SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 INIT_DATA_MAX_AGE = timedelta(hours=24)
 
@@ -194,6 +195,32 @@ async def find_session(session: AsyncSession, token: str) -> UserModel | None:
     return user
 
 
+# Telegram signs fresh init data on every launch, so the Mini App needs no session of its own:
+# the signature is the credential. Only the browser, which has nothing to sign with, gets a row.
+def init_data_header(request: Request) -> str | None:
+    scheme, _, raw = request.headers.get("authorization", "").partition(" ")
+    return raw if scheme.lower() == INIT_DATA_SCHEME and raw else None
+
+
+async def user_from_init_data(session: AsyncSession, init_data: str) -> UserModel:
+    parsed = verify_init_data(init_data)
+    assert parsed.user is not None
+    repo = UserRepo(session)
+    user = await repo.get(parsed.user.id)
+    if user is None or user.last_seen_at is None or utcnow() - user.last_seen_at > SEEN_THROTTLE:
+        fullname = " ".join(filter(None, [parsed.user.first_name, parsed.user.last_name]))
+        user = await repo.visited(
+            parsed.user.id,
+            parsed.user.language_code,
+            parsed.user.username,
+            fullname,
+            parsed.user.photo_url,
+        )
+        await session.commit()
+    deny_banned(user)
+    return user
+
+
 async def read_session(session: AsyncSession, token: str) -> UserModel:
     user = await find_session(session, token)
     if user is None:
@@ -207,6 +234,9 @@ async def current_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer),
     session: AsyncSession = Depends(get_session),
 ) -> UserModel:
+    init_data = init_data_header(request)
+    if init_data is not None:
+        return await user_from_init_data(session, init_data)
     if credentials is not None:
         return await read_session(session, credentials.credentials)
     token = request.cookies.get(SESSION_COOKIE)

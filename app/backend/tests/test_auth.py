@@ -2,9 +2,16 @@ from collections.abc import Callable
 from datetime import timedelta
 
 import pytest
-from fastapi import HTTPException
+from fastapi import HTTPException, Request
 
-from app.api.auth import SESSION_LIFETIME, claims_user_id, hash_telemetry_pass, session_alive, token_digest
+from app.api.auth import (
+    SESSION_LIFETIME,
+    claims_user_id,
+    hash_telemetry_pass,
+    init_data_header,
+    session_alive,
+    token_digest,
+)
 from app.api.v1.profile import NAME_MAX, PUBKEY_RE, _clean_name, _clean_names
 from app.utils import utcnow
 
@@ -15,6 +22,19 @@ def rejects(call: Callable[[], object], status: int = 401) -> None:
     with pytest.raises(HTTPException) as error:
         call()
     assert error.value.status_code == status
+
+
+def authorized(header: str) -> Request:
+    return Request({"type": "http", "headers": [(b"authorization", header.encode())] if header else []})
+
+
+def test_the_mini_app_credential_travels_in_its_own_scheme() -> None:
+    # Telegram signs fresh init data on every launch, so it arrives as "tma <raw>" and is checked
+    # per request; a Bearer token still means a stored session and must not be read as init data
+    assert init_data_header(authorized("tma user=1&hash=abc")) == "user=1&hash=abc"
+    assert init_data_header(authorized("TMA user=1&hash=abc")) == "user=1&hash=abc"
+    assert init_data_header(authorized("Bearer token")) is None
+    assert init_data_header(authorized("")) is None
 
 
 def test_only_the_digest_of_a_token_is_stored() -> None:

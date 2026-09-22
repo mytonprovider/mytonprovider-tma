@@ -11,12 +11,11 @@ export interface AuthUser {
 interface AuthState {
   loggedIn: boolean;
   user: AuthUser | null;
-  token: string | null;
   hasSession: boolean;
   banned: boolean;
   isAdmin: boolean;
   login: (user: AuthUser) => void;
-  openSession: (token?: string) => void;
+  openSession: () => void;
   setBanned: (banned: boolean) => void;
   setAdmin: (isAdmin: boolean) => void;
   logout: () => void;
@@ -39,16 +38,15 @@ export const useAuth = create<AuthState>()(
     (set) => ({
       loggedIn: false,
       user: null,
-      token: null,
       hasSession: false,
       banned: false,
       isAdmin: false,
       login: (user) => set({ loggedIn: true, user }),
-      openSession: (token) => set({ hasSession: true, token: token ?? null }),
+      openSession: () => set({ hasSession: true }),
       setBanned: (banned) => set({ banned }),
       setAdmin: (isAdmin) => set({ isAdmin }),
       logout: () =>
-        set({ loggedIn: false, user: null, token: null, hasSession: false, banned: false, isAdmin: false }),
+        set({ loggedIn: false, user: null, hasSession: false, banned: false, isAdmin: false }),
     }),
     {
       name: "mtp-auth",
