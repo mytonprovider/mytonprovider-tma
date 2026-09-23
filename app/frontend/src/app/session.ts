@@ -25,12 +25,23 @@ export async function establishSession(): Promise<void> {
     if (!isInTelegram()) auth.openSession();
   } catch (error) {
     if (error instanceof BackendError && error.detail === "Banned") auth.setBanned(true);
-    if (!isInTelegram() && error instanceof BackendError && error.status === 401) {
-      auth.logout();
+    if (error instanceof BackendError && error.status === 401) {
+      sessionLost();
       return;
     }
     console.error("backend session failed", error);
   }
+}
+
+// Inside Telegram the identity comes from the client and there is no way back in from
+// the screen, so a refused request only closes the session and waits for fresh init data.
+export function sessionLost(): void {
+  if (isInTelegram()) {
+    useAuth.getState().closeSession();
+    return;
+  }
+  useAuth.getState().logout();
+  useSubscriptions.getState().setAll([]);
 }
 
 export function endSession(): void {

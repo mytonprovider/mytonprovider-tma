@@ -16,6 +16,7 @@ interface AuthState {
   isAdmin: boolean;
   login: (user: AuthUser) => void;
   openSession: () => void;
+  closeSession: () => void;
   setBanned: (banned: boolean) => void;
   setAdmin: (isAdmin: boolean) => void;
   logout: () => void;
@@ -43,6 +44,7 @@ export const useAuth = create<AuthState>()(
       isAdmin: false,
       login: (user) => set({ loggedIn: true, user }),
       openSession: () => set({ hasSession: true }),
+      closeSession: () => set({ hasSession: false }),
       setBanned: (banned) => set({ banned }),
       setAdmin: (isAdmin) => set({ isAdmin }),
       logout: () =>

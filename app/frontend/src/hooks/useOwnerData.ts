@@ -7,6 +7,7 @@ import {
   type StatsPayload,
 } from "@/data/backend";
 import { OWNER_PERIOD_API, type OwnerChartRange, type OwnerPeriod } from "@/data/owner";
+import { sessionLost } from "@/app/session";
 import { useAuth } from "@/stores/auth";
 import { useEffect, useRef, useState } from "react";
 import { create } from "zustand";
@@ -121,6 +122,7 @@ export function useOwnerData(
         setRefreshing(false);
         if (error instanceof BackendError && error.detail === "Banned") useAuth.getState().setBanned(true);
         else if (error instanceof BackendError && error.status === 403) setDenied(true);
+        else if (error instanceof BackendError && error.status === 401) sessionLost();
         else {
           setFailed(true);
           console.error("owner data failed", error);
