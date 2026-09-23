@@ -78,6 +78,9 @@ def record_provider_failure(pubkey: str) -> None:
 
 
 def unauthorized(detail: str) -> HTTPException:
+    # Both "no credential at all" and "unknown session" answer 401, and the logs could not
+    # tell them apart while a client was looping on refused requests.
+    logger.warning("unauthorized: %s", detail)
     return HTTPException(status.HTTP_401_UNAUTHORIZED, detail)
 
 
