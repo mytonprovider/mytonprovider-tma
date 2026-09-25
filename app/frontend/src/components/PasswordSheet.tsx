@@ -4,6 +4,7 @@ import { Icon } from "@/components/Icon/Icon";
 import { MainButton } from "@/components/MainButton";
 import { BackendError } from "@/data/backend";
 import { subscribeWithPassword } from "@/data/sync";
+import { refreshOwner } from "@/hooks/useOwnerData";
 import { useT } from "@/i18n";
 import { cx } from "@/lib/cx";
 import { notify } from "@/lib/telegram";
@@ -74,6 +75,7 @@ export function PasswordSheet({ pubkey, onClose }: PasswordSheetProps) {
     setError("none");
     subscribeWithPassword(pubkey, password)
       .then(() => {
+        refreshOwner();
         setStatus("success");
         notify("success");
         track(setTimeout(close, SUCCESS_MS));

@@ -37,9 +37,13 @@ const useOwnerRevalidation = create<{ tick: number }>(() => ({ tick: 0 }));
 let invalidatedAt = 0;
 
 export function invalidateOwner(): void {
-  const now = Date.now();
-  if (now - invalidatedAt < CACHE_TTL_MS) return;
-  invalidatedAt = now;
+  if (Date.now() - invalidatedAt < CACHE_TTL_MS) return;
+  refreshOwner();
+}
+
+// A new password changes nothing the effect watches, so the screen has to be told.
+export function refreshOwner(): void {
+  invalidatedAt = Date.now();
   cache.clear();
   useOwnerRevalidation.setState((s) => ({ tick: s.tick + 1 }));
 }
@@ -114,6 +118,7 @@ export function useOwnerData(
       .then((data) => {
         if (!alive) return;
         setPayload(data);
+        setDenied(false);
         setFailed(false);
         setRefreshing(false);
       })
