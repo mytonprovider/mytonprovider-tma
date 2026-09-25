@@ -155,6 +155,7 @@ export const en = {
   trustedCount: (n: number) => `Showing ${n} ${n === 1 ? "address" : "addresses"}`,
   subscribe: "Subscribe",
   unsubscribe: "Unsubscribe",
+  updatePassword: "Update password",
   unsubscribeConfirm: "Unsubscribe from provider?",
   cancel: "Cancel",
   nameTitle: "Provider name",

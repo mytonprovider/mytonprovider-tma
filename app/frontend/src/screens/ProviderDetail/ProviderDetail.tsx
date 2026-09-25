@@ -107,6 +107,7 @@ export function ProviderDetail() {
   const isSubscribed = useSubscriptions((s) => s.subscribed.includes(pubkey));
   const name = useNames((s) => s.providers[pubkey]);
 
+  const [deniedFor, setDeniedFor] = useState<string | null>(null);
   const [pwOpen, setPwOpen] = useState(false);
   const [nameOpen, setNameOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -143,10 +144,19 @@ export function ProviderDetail() {
   const hasTelemetry = provider.hasTelemetry;
 
   const checksOpen = isSubscribed && st.problems > 0;
-  const subscribeLabel = isSubscribed ? t.unsubscribe : loggedIn ? t.subscribe : t.loginTg;
+  // A subscription the provider no longer confirms keeps its place in the list: the button
+  // offers the new password instead of the way out.
+  const denied = deniedFor === pubkey;
+  const subscribeLabel = denied
+    ? t.updatePassword
+    : isSubscribed
+      ? t.unsubscribe
+      : loggedIn
+        ? t.subscribe
+        : t.loginTg;
   const onSubscribe = () => {
     if (!loggedIn) return startLogin();
-    if (isSubscribed) return setConfirmOpen(true);
+    if (isSubscribed && !denied) return setConfirmOpen(true);
     setPwOpen(true);
   };
 
@@ -211,7 +221,7 @@ export function ProviderDetail() {
         header={header}
         bottom={
           <BottomBar>
-            <MainButton label={subscribeLabel} tone={isSubscribed ? "destructive" : "accent"} onClick={onSubscribe} />
+            <MainButton label={subscribeLabel} tone={isSubscribed && !denied ? "destructive" : "accent"} onClick={onSubscribe} />
           </BottomBar>
         }
       >
@@ -284,7 +294,7 @@ export function ProviderDetail() {
         </div>
 
         {isSubscribed ? (
-          <OwnerPanel provider={provider} pubkey={pubkey}>
+          <OwnerPanel provider={provider} pubkey={pubkey} onDenied={setDeniedFor}>
             {overview}
           </OwnerPanel>
         ) : (

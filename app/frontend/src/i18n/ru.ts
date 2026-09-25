@@ -158,6 +158,7 @@ export const ru: Dict = {
   trustedCount: (n: number) => `Показано ${n} ${pluralRu(n, "адрес", "адреса", "адресов")}`,
   subscribe: "Подписаться",
   unsubscribe: "Отписаться",
+  updatePassword: "Обновить пароль",
   unsubscribeConfirm: "Отписаться от провайдера?",
   cancel: "Отмена",
   nameTitle: "Имя провайдера",

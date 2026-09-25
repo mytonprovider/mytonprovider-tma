@@ -4,7 +4,6 @@ import { Gauge } from "@/components/Gauge";
 import { SectionHeader } from "@/components/SectionHeader";
 import { SegmentControl } from "@/components/SegmentControl";
 import { OWNER_CHART_RANGES, adaptOwner, type ChartKey, type GaugeKey, type OwnerChartRange, type OwnerPeriod } from "@/data/owner";
-import { unsubscribeProvider } from "@/data/sync";
 import { EMPTY_BAGS, type BagFilter } from "@/data/backend";
 import type { Provider } from "@/data/types";
 import { prefetchOwner, useOwnerData } from "@/hooks/useOwnerData";
@@ -58,7 +57,17 @@ function balanceAge(secs: number, t: Dict): string {
   return secs < JUST_NOW_SEC ? t.updatedNow : t.updatedAgo(formatTime(secs, t, true));
 }
 
-export function OwnerPanel({ provider, pubkey, children }: { provider: Provider; pubkey: string; children: ReactNode }) {
+export function OwnerPanel({
+  provider,
+  pubkey,
+  onDenied,
+  children,
+}: {
+  provider: Provider;
+  pubkey: string;
+  onDenied: (pubkey: string | null) => void;
+  children: ReactNode;
+}) {
   const t = useT();
   const navigate = useNavigate();
   const loggedIn = useAuth((s) => s.loggedIn);
@@ -73,8 +82,8 @@ export function OwnerPanel({ provider, pubkey, children }: { provider: Provider;
     if (loggedIn) prefetchOwner(pubkey);
   }, [pubkey, loggedIn]);
   useEffect(() => {
-    if (denied) unsubscribeProvider(pubkey);
-  }, [denied, pubkey]);
+    onDenied(denied ? pubkey : null);
+  }, [denied, pubkey, onDenied]);
 
   const owner = payload ? adaptOwner(provider, payload, thresholds) : null;
   const nowSec = Math.floor(Date.now() / 1000);
