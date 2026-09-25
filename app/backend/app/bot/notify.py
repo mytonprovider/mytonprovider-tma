@@ -15,10 +15,6 @@ from app.utils import user_friendly
 
 logger = logging.getLogger(__name__)
 
-# Trusting an owner is trusting them to pay: a bag of theirs running dry and filling up again
-# is their own business, not an alert. Everything else about their bags still goes out.
-SILENT_FOR_TRUSTED = frozenset({AlertType.BAG_UNPAID, AlertType.BAG_REFILLED})
-
 
 async def detected(user: UserModel, alert_type: AlertType, pubkey: str, color: AlertColor) -> bool:
     title = t(user.lang, f"alert_detected_{alert_type.value}")
@@ -50,8 +46,6 @@ async def bags(session: AsyncSession, pubkey: str, alert_type: AlertType, items:
         for item in items:
             owner = owners.get(item.bag_id)
             trusted = owner in user.trusted_addresses
-            if trusted and alert_type in SILENT_FOR_TRUSTED:
-                continue
             owner_name = address_names.get(owner) if owner else None
             message = render.bag(user.lang, user.explorer, title, pubkey, item, trusted, name, owner_name)
             delivered |= await _deliver(user, message)
