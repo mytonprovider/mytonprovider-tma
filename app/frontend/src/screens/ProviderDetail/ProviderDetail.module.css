@@ -391,64 +391,39 @@
 }
 
 
-.skel {
+/* The placeholder is the very markup it stands in for, with the text made unreadable:
+   a parallel set of boxes drifts from the cards, and it did — 28 px on the storage card. */
+.shape {
   composes: pulse from "../../styles/anim.module.css";
   border-radius: 6px;
   background: var(--ts-seg);
+  color: transparent;
 }
 
-.skelBalanceLabel {
-  composes: skel;
-  width: 64px;
-  height: 16px;
-}
-
-.skelBalanceValue {
-  composes: skel;
-  width: 148px;
-  height: 30px;
-  margin-top: 5px;
-}
-
-.skelBalanceNote {
-  composes: skel;
-  width: 96px;
-  height: 14px;
-  margin-top: 8px;
-}
-
-.skelStorageLabel {
-  composes: skel;
+.shapeLabel {
   width: 92px;
-  height: 16px;
 }
 
-.skelStorageValue {
-  composes: skel;
+.shapeValue {
   width: 118px;
-  height: 16px;
 }
 
-.skelStorageBar {
-  composes: skel;
-  width: 100%;
-  height: 6px;
-  border-radius: 3px;
-  margin-top: 16px;
-  margin-bottom: 5px;
+.shapeBalance {
+  width: 148px;
+}
+
+.shapeNote {
+  width: 96px;
+}
+
+.shapePct {
+  width: 34px;
 }
 
 .skelSeg {
-  composes: skel;
   width: 100%;
   height: 36px;
   border-radius: 10px;
-}
-
-.skelBagsLabel {
-  composes: skel;
-  width: 120px;
-  height: 16px;
 }
 
 @keyframes ts-banner-in {
@@ -475,7 +450,6 @@
 }
 
 .skelValue {
-  composes: skel;
   width: 84px;
   height: 14px;
 }

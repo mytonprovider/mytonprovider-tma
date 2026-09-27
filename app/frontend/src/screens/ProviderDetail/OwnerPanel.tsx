@@ -37,6 +37,8 @@ const BAG_ROWS: { state: BagFilter; label: DictStringKey }[] = [
 ];
 
 const SKELETON_WIDTHS = [34, 72, 86, 76, 94, 112, 128, 104];
+// The spans need content to have a line box at all, and it must not be readable.
+const BLANK = "\u00a0";
 
 const GAUGE_LABEL: Record<GaugeKey, DictStringKey> = {
   cpu_high: "chartCpu",
@@ -196,28 +198,46 @@ export function OwnerPanel({
         </>
       ) : loading ? (
         <>
-          <div className={styles.card}>
-            <div className={styles.skelBalanceLabel} />
-            <div className={styles.skelBalanceValue} />
-            <div className={styles.skelBalanceNote} />
+          <div className={cx(styles.card, styles.balanceCard)}>
+            <div className={styles.balanceMain}>
+              <div className={cx(styles.subLabel, styles.shape, styles.shapeLabel)}>{BLANK}</div>
+              <div className={styles.balanceRow}>
+                <span className={cx(styles.balanceValue, styles.shape, styles.shapeBalance)}>{BLANK}</span>
+              </div>
+              <div className={cx(styles.balanceUpdated, styles.shape, styles.shapeNote)}>{BLANK}</div>
+            </div>
           </div>
           <div className={cx(styles.card, styles.storageCard)}>
             <div className={styles.storageTop}>
-              <div className={styles.skelStorageLabel} />
-              <div className={styles.skelStorageValue} />
+              <span className={cx(styles.subLabel, styles.shape, styles.shapeLabel)}>{BLANK}</span>
+              <span className={cx(styles.storageValue, styles.shape, styles.shapeValue)}>{BLANK}</span>
             </div>
-            <div className={styles.skelStorageBar} />
+            <div className={styles.storageBarRow}>
+              <div className={cx(styles.storageBarTrack, styles.shape)} />
+              <span className={cx(styles.storagePct, styles.shape, styles.shapePct)}>{BLANK}</span>
+            </div>
+            <div className={styles.storageTop}>
+              <span className={cx(styles.subLabel, styles.shape, styles.shapeLabel)}>{BLANK}</span>
+              <span className={cx(styles.storageValue, styles.shape, styles.shapeValue)}>{BLANK}</span>
+            </div>
           </div>
           <SectionHeader title={t.bagsTitle} />
           <Card>
             {BAG_ROWS.map(({ state }, index) => (
               <div key={state} className={styles.bagsRow}>
-                <div className={styles.skelBagsLabel} style={{ width: SKELETON_WIDTHS[index] }} />
+                <span className={cx(styles.bagsLabel, styles.shape)} style={{ width: SKELETON_WIDTHS[index] }}>
+                  {BLANK}
+                </span>
+                <span className={styles.bagsTail}>
+                  <span className={styles.bagsGhost}>
+                    <Icon glyph="chevron" size={16} color="var(--ts-hint)" />
+                  </span>
+                </span>
               </div>
             ))}
           </Card>
           <div className={styles.ownerSegWrap}>
-            <div className={styles.skelSeg} />
+            <div className={cx(styles.skelSeg, styles.shape)} />
           </div>
         </>
       ) : null}
@@ -294,7 +314,7 @@ function SummaryRow({ label, value, loading }: { label: string; value: string; l
   return (
     <div className={styles.summaryRow}>
       <span className={styles.summaryLabel}>{label}</span>
-      {loading ? <span className={styles.skelValue} /> : <span>{value}</span>}
+      {loading ? <span className={cx(styles.shape, styles.skelValue)}>{BLANK}</span> : <span>{value}</span>}
     </div>
   );
 }
