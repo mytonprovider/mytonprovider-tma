@@ -1,3 +1,5 @@
+import { establishSession } from "@/app/session";
+import { Callout } from "@/components/Callout";
 import { Card } from "@/components/Card";
 import { Chart } from "@/components/Chart";
 import { Gauge } from "@/components/Gauge";
@@ -6,7 +8,7 @@ import { SegmentControl } from "@/components/SegmentControl";
 import { OWNER_CHART_RANGES, adaptOwner, type ChartKey, type GaugeKey, type OwnerChartRange, type OwnerPeriod } from "@/data/owner";
 import { EMPTY_BAGS, type BagFilter } from "@/data/backend";
 import type { Provider } from "@/data/types";
-import { prefetchOwner, useOwnerData } from "@/hooks/useOwnerData";
+import { prefetchOwner, refreshOwner, useOwnerData } from "@/hooks/useOwnerData";
 import { useT } from "@/i18n";
 import type { Dict, DictStringKey } from "@/i18n/types";
 import { explorerAddressUrl } from "@/lib/address";
@@ -73,6 +75,7 @@ export function OwnerPanel({
   const t = useT();
   const navigate = useNavigate();
   const loggedIn = useAuth((s) => s.loggedIn);
+  const hasSession = useAuth((s) => s.hasSession);
   const thresholds = useAlerts((s) => s.thresholds);
 
   const [tab, setTab] = useState<OwnerTab>("overview");
@@ -91,7 +94,7 @@ export function OwnerPanel({
   const nowSec = Math.floor(Date.now() / 1000);
   const explorer = useSettings((state) => state.explorer);
   const walletUrl = explorerAddressUrl(provider.address, explorer);
-  const loading = loggedIn && !payload && !denied && !failed;
+  const loading = hasSession && !payload && !denied && !failed;
   const bags = payload?.bags ?? EMPTY_BAGS;
 
   return (
@@ -240,6 +243,16 @@ export function OwnerPanel({
             <div className={cx(styles.skelSeg, styles.shape)} />
           </div>
         </>
+      ) : loggedIn && !denied ? (
+        <Callout desc={hasSession ? t.ownerFailed : t.sessionFailed}>
+          <button
+            type="button"
+            className={styles.calloutBtn}
+            onClick={hasSession ? refreshOwner : () => void establishSession()}
+          >
+            {t.retry}
+          </button>
+        </Callout>
       ) : null}
 
       {(tab === "overview" || !owner) && children}

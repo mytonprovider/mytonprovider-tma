@@ -23,6 +23,8 @@ export const en = {
   loadMore: "Load more",
   providersNotFound: "No providers match these filters",
   loadError: "Couldn't load providers",
+  ownerFailed: "Couldn't load the data",
+  sessionFailed: "Couldn't sign in. Relaunch the app",
   retry: "Try again",
   findProviders: "Choose a provider",
   favEmpty: "No favorites yet. Star a provider to keep it here.",

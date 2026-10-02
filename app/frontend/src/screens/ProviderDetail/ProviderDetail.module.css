@@ -458,3 +458,7 @@
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
+
+.calloutBtn {
+  composes: button from "../../components/Callout.module.css";
+}
