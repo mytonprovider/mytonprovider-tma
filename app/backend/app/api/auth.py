@@ -21,11 +21,15 @@ from app.db.repos import SessionRepo, UserRepo
 from app.utils import utcnow
 
 SESSION_LIFETIME = timedelta(days=30)
+SESSIONS_PER_USER = 10
 SEEN_THROTTLE = timedelta(hours=1)
 SESSION_COOKIE = "__Host-session"
 INIT_DATA_SCHEME = "tma"
+BEARER_SCHEME = "bearer"
 SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
-INIT_DATA_MAX_AGE = timedelta(hours=24)
+# Telegram hands a minimized or reloaded webview the same init data for days (tdesktop#28303),
+# so it only opens a session and may be as old as one; requests carry the session token.
+INIT_DATA_MAX_AGE = SESSION_LIFETIME
 
 OIDC_ISSUER = "https://oauth.telegram.org"
 OIDC_AUTH_URL = "https://oauth.telegram.org/auth"
@@ -97,8 +101,12 @@ def verify_init_data(init_data: str) -> WebAppInitData:
         raise unauthorized("Invalid init data") from error
     if parsed.user is None:
         raise unauthorized("Init data has no user")
-    if datetime.now(timezone.utc) - parsed.auth_date > INIT_DATA_MAX_AGE:
+    age = datetime.now(timezone.utc) - parsed.auth_date
+    if age > INIT_DATA_MAX_AGE:
+        logger.warning("init data expired: age %s", age)
         raise unauthorized("Init data expired")
+    if age > timedelta(days=1):
+        logger.info("init data accepted: age %s", age)
     return parsed
 
 
@@ -160,6 +168,7 @@ async def open_session(session: AsyncSession, user_id: int) -> str:
     await repo.purge(utcnow() - SESSION_LIFETIME)
     token = secrets.token_urlsafe(32)
     await repo.create(token_hash=token_digest(token), user_id=user_id)
+    await repo.trim(user_id, SESSIONS_PER_USER)
     return token
 
 
@@ -196,11 +205,9 @@ async def find_session(session: AsyncSession, token: str) -> UserModel | None:
     return user
 
 
-# Telegram signs fresh init data on every launch, so the Mini App needs no session of its own:
-# the signature is the credential. Only the browser, which has nothing to sign with, gets a row.
-def init_data_header(request: Request) -> str | None:
-    scheme, _, raw = request.headers.get("authorization", "").partition(" ")
-    return raw if scheme.lower() == INIT_DATA_SCHEME and raw else None
+def auth_header(request: Request, scheme: str) -> str | None:
+    name, _, raw = request.headers.get("authorization", "").partition(" ")
+    return raw if name.lower() == scheme and raw else None
 
 
 async def user_from_init_data(session: AsyncSession, init_data: str) -> UserModel:
@@ -234,13 +241,16 @@ async def current_user(
     request: Request,
     session: AsyncSession = Depends(get_session),
 ) -> UserModel:
-    init_data = init_data_header(request)
+    # The previous build still sends init data on every request; the bridge leaves with it.
+    init_data = auth_header(request, INIT_DATA_SCHEME)
     if init_data is not None:
         return await user_from_init_data(session, init_data)
-    token = request.cookies.get(SESSION_COOKIE)
+    token = auth_header(request, BEARER_SCHEME)
     if token is None:
-        raise unauthorized("Missing session")
-    deny_foreign_origin(request)
+        token = request.cookies.get(SESSION_COOKIE)
+        if token is None:
+            raise unauthorized("Missing session")
+        deny_foreign_origin(request)
     return await read_session(session, token)
 
 

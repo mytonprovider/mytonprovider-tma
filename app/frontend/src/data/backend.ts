@@ -1,4 +1,5 @@
 import { getInitDataRaw, isInTelegram } from "@/lib/telegram";
+import { useAuth } from "@/stores/auth";
 import type { Explorer, Theme } from "@/stores/settings";
 
 const BACKEND_BASE = import.meta.env.VITE_BACKEND_BASE ?? "";
@@ -15,19 +16,47 @@ export class BackendError extends Error {
   }
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  // Telegram signs fresh init data on every launch, so it travels as the credential itself and
-  // the Mini App keeps no session: the browser is the only client that needs a cookie.
-  const initData = isInTelegram() ? getInitDataRaw() : null;
+let exchange: Promise<string | null> | null = null;
+
+// Telegram hands a minimized or reloaded webview the same init data for days, so it only buys
+// a session token; parallel refusals share one exchange.
+export function openTelegramSession(): Promise<string | null> {
+  const initData = getInitDataRaw();
+  if (!initData) return Promise.resolve(null);
+  if (!exchange) {
+    exchange = request<{ token: string }>(
+      "/api/v1/auth/telegram",
+      { method: "POST", headers: { Authorization: `tma ${initData}` } },
+      false,
+    )
+      .then(({ token }) => {
+        useAuth.getState().setToken(token);
+        return token;
+      })
+      .catch(() => null)
+      .finally(() => {
+        exchange = null;
+      });
+  }
+  return exchange;
+}
+
+async function request<T>(path: string, init?: RequestInit, retry = true): Promise<T> {
+  const token = isInTelegram() ? useAuth.getState().token : null;
   const response = await fetch(`${BACKEND_BASE}${path}`, {
     ...init,
     signal: AbortSignal.timeout?.(TIMEOUT_MS),
     headers: {
       "Content-Type": "application/json",
-      ...(initData ? { Authorization: `tma ${initData}` } : {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...init?.headers,
     },
   });
+  if (response.status === 401 && token && retry) {
+    const current = useAuth.getState().token;
+    const fresh = current !== token ? current : await openTelegramSession();
+    if (fresh) return request<T>(path, init, false);
+  }
   if (!response.ok) {
     const body: unknown = await response.json().catch(() => null);
     const detail = (body as { detail?: unknown } | null)?.detail;

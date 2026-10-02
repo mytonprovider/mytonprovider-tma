@@ -1,16 +1,25 @@
+import hashlib
+import hmac
+import json
 from collections.abc import Callable
 from datetime import timedelta
+from urllib.parse import urlencode
 
 import pytest
 from fastapi import HTTPException, Request
 
+from app import config
 from app.api.auth import (
+    BEARER_SCHEME,
+    INIT_DATA_MAX_AGE,
+    INIT_DATA_SCHEME,
     SESSION_LIFETIME,
+    auth_header,
     claims_user_id,
     hash_telemetry_pass,
-    init_data_header,
     session_alive,
     token_digest,
+    verify_init_data,
 )
 from app.api.v1.profile import NAME_MAX, PUBKEY_RE, _clean_name, _clean_names
 from app.utils import utcnow
@@ -28,13 +37,35 @@ def authorized(header: str) -> Request:
     return Request({"type": "http", "headers": [(b"authorization", header.encode())] if header else []})
 
 
-def test_the_mini_app_credential_travels_in_its_own_scheme() -> None:
-    # Telegram signs fresh init data on every launch, so it arrives as "tma <raw>" and is checked
-    # per request; a Bearer token still means a stored session and must not be read as init data
-    assert init_data_header(authorized("tma user=1&hash=abc")) == "user=1&hash=abc"
-    assert init_data_header(authorized("TMA user=1&hash=abc")) == "user=1&hash=abc"
-    assert init_data_header(authorized("Bearer token")) is None
-    assert init_data_header(authorized("")) is None
+def signed_init_data(age: timedelta) -> str:
+    fields = {
+        "auth_date": str(int((utcnow() - age).timestamp())),
+        "user": json.dumps({"id": 42, "first_name": "Ness"}),
+    }
+    check = "\n".join(f"{key}={fields[key]}" for key in sorted(fields))
+    secret = hmac.new(b"WebAppData", config.BOT_TOKEN.encode(), hashlib.sha256).digest()
+    fields["hash"] = hmac.new(secret, check.encode(), hashlib.sha256).hexdigest()
+    return urlencode(fields)
+
+
+def test_each_client_speaks_its_own_scheme() -> None:
+    # init data arrives as "tma <raw>" only to open a session; a Bearer token is the session itself
+    assert auth_header(authorized("tma user=1&hash=abc"), INIT_DATA_SCHEME) == "user=1&hash=abc"
+    assert auth_header(authorized("TMA user=1&hash=abc"), INIT_DATA_SCHEME) == "user=1&hash=abc"
+    assert auth_header(authorized("Bearer token"), INIT_DATA_SCHEME) is None
+    assert auth_header(authorized("Bearer token"), BEARER_SCHEME) == "token"
+    assert auth_header(authorized("tma user=1"), BEARER_SCHEME) is None
+    assert auth_header(authorized(""), BEARER_SCHEME) is None
+
+
+def test_init_data_opens_a_session_for_as_long_as_one_lives() -> None:
+    # Telegram hands a minimized or reloaded webview the same init data for days, so only the
+    # signature decides within the session lifetime
+    assert verify_init_data(signed_init_data(timedelta(0))).user is not None
+    assert verify_init_data(signed_init_data(INIT_DATA_MAX_AGE - timedelta(minutes=1))).user is not None
+
+    rejects(lambda: verify_init_data(signed_init_data(INIT_DATA_MAX_AGE + timedelta(minutes=1))))
+    rejects(lambda: verify_init_data(signed_init_data(timedelta(0)) + "x"))
 
 
 def test_only_the_digest_of_a_token_is_stored() -> None:

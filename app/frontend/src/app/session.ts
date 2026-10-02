@@ -1,5 +1,5 @@
-import { BackendError, backend } from "@/data/backend";
-import { getInitDataRaw, isInTelegram } from "@/lib/telegram";
+import { BackendError, backend, openTelegramSession } from "@/data/backend";
+import { isInTelegram } from "@/lib/telegram";
 import { consumeRedirectCode, redirectUri } from "@/lib/telegramLogin";
 import { hydrateFromServer } from "@/data/sync";
 import { makeAuthUser, useAuth } from "@/stores/auth";
@@ -18,7 +18,11 @@ export async function establishSession(): Promise<void> {
     if (code) {
       await finishRedirectLogin(code);
     } else if (isInTelegram()) {
-      if (!getInitDataRaw()) return;
+      const token = (await openTelegramSession()) ?? useAuth.getState().token;
+      if (!token) {
+        auth.closeSession();
+        return;
+      }
       auth.openSession();
     }
     await hydrateFromServer(true);
@@ -33,8 +37,8 @@ export async function establishSession(): Promise<void> {
   }
 }
 
-// Inside Telegram the identity comes from the client and there is no way back in from
-// the screen, so a refused request only closes the session and waits for fresh init data.
+// Inside Telegram a 401 reaches here only after request() has already retried with a fresh
+// token, so the session just closes; the screen offers a retry.
 export function sessionLost(): void {
   if (isInTelegram()) {
     useAuth.getState().closeSession();

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Response, status
+from fastapi import APIRouter, Depends, Request, Response, status
 from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -24,6 +24,21 @@ class AuthResponse(BaseModel):
     name: str | None = None
     username: str | None = None
     photo_url: str | None = None
+
+
+class TokenResponse(BaseModel):
+    token: str
+
+
+@router.post("/telegram")
+async def auth_telegram(request: Request, session: AsyncSession = Depends(get_session)) -> TokenResponse:
+    init_data = auth.auth_header(request, auth.INIT_DATA_SCHEME)
+    if init_data is None:
+        raise auth.unauthorized("Missing init data")
+    user = await auth.user_from_init_data(session, init_data)
+    token = await auth.open_session(session, user.id)
+    await session.commit()
+    return TokenResponse(token=token)
 
 
 @router.post("/widget", status_code=status.HTTP_204_NO_CONTENT)
