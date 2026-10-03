@@ -124,7 +124,7 @@ export function MenuSheet() {
       <div className={styles.label}>{t.explorerLabel}</div>
       <SegmentControl<Explorer>
         options={[
-          { value: "actonscan", label: "Actonscan" },
+          { value: "tonviewer", label: "Tonviewer" },
           { value: "tonscan", label: "Tonscan" },
         ]}
         value={explorer}
