@@ -26,7 +26,11 @@ export function openTelegramSession(): Promise<string | null> {
   if (!exchange) {
     exchange = request<{ token: string }>(
       "/api/v1/auth/telegram",
-      { method: "POST", headers: { Authorization: `tma ${initData}` } },
+      {
+        method: "POST",
+        headers: { Authorization: `tma ${initData}` },
+        body: JSON.stringify({ token: useAuth.getState().token }),
+      },
       false,
     )
       .then(({ token }) => {

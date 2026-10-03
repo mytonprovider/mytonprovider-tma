@@ -12,6 +12,10 @@ class SessionRepo(BaseRepo[SessionModel]):
     async def close(self, user_id: int) -> None:
         await self.session.execute(delete(SessionModel).where(SessionModel.user_id == user_id))
 
+    async def release(self, user_id: int, token_hash: str) -> None:
+        stmt = delete(SessionModel).where(SessionModel.user_id == user_id, SessionModel.token_hash == token_hash)
+        await self.session.execute(stmt)
+
     async def trim(self, user_id: int, keep: int) -> None:
         newest = (
             select(SessionModel.token_hash)

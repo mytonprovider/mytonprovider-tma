@@ -163,9 +163,11 @@ def session_alive(created_at: datetime, now: datetime) -> bool:
     return now - created_at < SESSION_LIFETIME
 
 
-async def open_session(session: AsyncSession, user_id: int) -> str:
+async def open_session(session: AsyncSession, user_id: int, replacing: str | None = None) -> str:
     repo = SessionRepo(session)
     await repo.purge(utcnow() - SESSION_LIFETIME)
+    if replacing is not None:
+        await repo.release(user_id, token_digest(replacing))
     token = secrets.token_urlsafe(32)
     await repo.create(token_hash=token_digest(token), user_id=user_id)
     await repo.trim(user_id, SESSIONS_PER_USER)

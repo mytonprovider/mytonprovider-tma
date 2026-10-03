@@ -26,17 +26,27 @@ class AuthResponse(BaseModel):
     photo_url: str | None = None
 
 
+class TelegramRequest(BaseModel):
+    token: str | None = Field(default=None, max_length=128)
+
+
 class TokenResponse(BaseModel):
     token: str
 
 
 @router.post("/telegram")
-async def auth_telegram(request: Request, session: AsyncSession = Depends(get_session)) -> TokenResponse:
+async def auth_telegram(
+    request: Request,
+    body: TelegramRequest | None = None,
+    session: AsyncSession = Depends(get_session),
+) -> TokenResponse:
     init_data = auth.auth_header(request, auth.INIT_DATA_SCHEME)
     if init_data is None:
         raise auth.unauthorized("Missing init data")
     user = await auth.user_from_init_data(session, init_data)
-    token = await auth.open_session(session, user.id)
+    # Every launch renews the session; the token it replaces goes with it, so a device keeps
+    # one row and the browser cookie is never squeezed out by the cap.
+    token = await auth.open_session(session, user.id, replacing=body.token if body else None)
     await session.commit()
     return TokenResponse(token=token)
 
