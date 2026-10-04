@@ -17,7 +17,6 @@ from app import config
 from app.api import auth
 from app.db import session_factory
 from app.db.models import UserModel
-from app.db.repos import SessionRepo
 
 logger = logging.getLogger(__name__)
 
@@ -67,9 +66,8 @@ class TelegramAuthProvider(OAuthProvider):
             if user.id not in config.ADMIN_IDS:
                 logger.warning("access denied for %s", user.id)
                 raise HTTPException(HTTP_403_FORBIDDEN, "Access denied")
-            token = await auth.open_session(session, user.id)
             await session.commit()
-            request.state.login = (self._admin_user(user), token)
+            request.state.login = (self._admin_user(user), auth.sign_session(user.id))
         logger.info("logged in: %s", user.id)
 
     async def render_callback(self, request: Request) -> Response:
@@ -89,11 +87,6 @@ class TelegramAuthProvider(OAuthProvider):
 
     async def logout(self, request: Request) -> Response:
         request.session.clear()
-        user = await self._session_user(request)
-        if user is not None:
-            async with session_factory() as session:
-                await SessionRepo(session).close(user.id)
-                await session.commit()
         # Redirecting to the index would bounce right back into the provider and log the
         # user in again, so the gate itself is the logged out screen.
         response = self._render_gate(request, denied=False)
@@ -110,12 +103,15 @@ class TelegramAuthProvider(OAuthProvider):
 
     # The panel rides the session of the app itself: same host, same cookie.
     async def _session_user(self, request: Request) -> UserModel | None:
-        token = request.cookies.get(auth.SESSION_COOKIE)
-        if token is None:
+        value = request.cookies.get(auth.SESSION_COOKIE)
+        if value is None:
             return None
-        async with session_factory() as session:
-            user = await auth.find_session(session, token)
-        return user if user is not None and user.id in config.ADMIN_IDS else None
+        try:
+            async with session_factory() as session:
+                user = await auth.user_from_cookie(session, value)
+        except HTTPException:
+            return None
+        return user if user.id in config.ADMIN_IDS else None
 
     def _admin_user(self, user: UserModel) -> AdminUser:
         return AdminUser(username=user.username or user.fullname or str(user.id), photo_url=user.photo_url)

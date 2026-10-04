@@ -9,16 +9,16 @@ import pytest
 from fastapi import HTTPException, Request
 
 from app import config
+from app.api import auth
 from app.api.auth import (
-    BEARER_SCHEME,
     INIT_DATA_MAX_AGE,
     INIT_DATA_SCHEME,
     SESSION_LIFETIME,
     auth_header,
     claims_user_id,
     hash_telemetry_pass,
-    session_alive,
-    token_digest,
+    read_session_cookie,
+    sign_session,
     verify_init_data,
 )
 from app.api.v1.profile import NAME_MAX, PUBKEY_RE, _clean_name, _clean_names
@@ -48,14 +48,12 @@ def signed_init_data(age: timedelta) -> str:
     return urlencode(fields)
 
 
-def test_each_client_speaks_its_own_scheme() -> None:
-    # init data arrives as "tma <raw>" only to open a session; a Bearer token is the session itself
+def test_the_mini_app_signs_every_request_itself() -> None:
+    # the Telegram signature arrives as "tma <raw>"; anything else is not a Mini App credential
     assert auth_header(authorized("tma user=1&hash=abc"), INIT_DATA_SCHEME) == "user=1&hash=abc"
     assert auth_header(authorized("TMA user=1&hash=abc"), INIT_DATA_SCHEME) == "user=1&hash=abc"
     assert auth_header(authorized("Bearer token"), INIT_DATA_SCHEME) is None
-    assert auth_header(authorized("Bearer token"), BEARER_SCHEME) == "token"
-    assert auth_header(authorized("tma user=1"), BEARER_SCHEME) is None
-    assert auth_header(authorized(""), BEARER_SCHEME) is None
+    assert auth_header(authorized(""), INIT_DATA_SCHEME) is None
 
 
 def test_init_data_opens_a_session_for_as_long_as_one_lives() -> None:
@@ -68,18 +66,23 @@ def test_init_data_opens_a_session_for_as_long_as_one_lives() -> None:
     rejects(lambda: verify_init_data(signed_init_data(timedelta(0)) + "x"))
 
 
-def test_only_the_digest_of_a_token_is_stored() -> None:
-    assert token_digest("token") == token_digest("token")
-    assert token_digest("token") != token_digest("Token")
-    # sha256 in hex: the column holds 64 characters and never the token itself
-    assert len(token_digest("token")) == 64
+def test_the_cookie_carries_the_user_under_our_signature() -> None:
+    # the server keeps nothing: the signature alone says who the cookie belongs to
+    assert read_session_cookie(sign_session(42)) == 42
+
+    rejects(lambda: read_session_cookie(sign_session(42) + "x"))
+    rejects(lambda: read_session_cookie(sign_session(42).replace("42", "43", 1)))
+    rejects(lambda: read_session_cookie(""))
 
 
-def test_session_dies_when_its_lifetime_runs_out() -> None:
-    now = utcnow()
+def test_the_cookie_dies_when_its_lifetime_runs_out(monkeypatch: pytest.MonkeyPatch) -> None:
+    issued = int((utcnow() - SESSION_LIFETIME - timedelta(minutes=1)).timestamp())
+    monkeypatch.setattr(auth.session_signer, "get_timestamp", lambda: issued)
+    stale = sign_session(42)
+    monkeypatch.undo()
 
-    assert session_alive(now - SESSION_LIFETIME + timedelta(minutes=1), now)
-    assert not session_alive(now - SESSION_LIFETIME, now)
+    rejects(lambda: read_session_cookie(stale))
+    assert read_session_cookie(sign_session(42)) == 42
 
 
 def test_telegram_sends_the_id_both_ways() -> None:

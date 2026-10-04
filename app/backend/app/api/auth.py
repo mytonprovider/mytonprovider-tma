@@ -2,7 +2,6 @@ import asyncio
 import base64
 import hashlib
 import logging
-import secrets
 import time
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -12,23 +11,23 @@ import jwt
 from aiogram.utils.web_app import WebAppInitData, safe_parse_webapp_init_data
 from cachetools import TTLCache
 from fastapi import Depends, HTTPException, Request, Response, status
+from itsdangerous import BadData, TimestampSigner
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import config
 from app.db import get_session
 from app.db.models import UserModel
-from app.db.repos import SessionRepo, UserRepo
+from app.db.repos import UserRepo
 from app.utils import utcnow
 
 SESSION_LIFETIME = timedelta(days=30)
-SESSIONS_PER_USER = 10
 SEEN_THROTTLE = timedelta(hours=1)
 SESSION_COOKIE = "__Host-session"
+SESSION_SALT = "session"
 INIT_DATA_SCHEME = "tma"
-BEARER_SCHEME = "bearer"
 SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 # Telegram hands a minimized or reloaded webview the same init data for days (tdesktop#28303),
-# so it only opens a session and may be as old as one; requests carry the session token.
+# so the Mini App is let in on a signature as old as a web session.
 INIT_DATA_MAX_AGE = SESSION_LIFETIME
 
 OIDC_ISSUER = "https://oauth.telegram.org"
@@ -42,6 +41,8 @@ SUBSCRIBE_ATTEMPT_WINDOW = 15 * 60
 
 logger = logging.getLogger(__name__)
 jwks_client = jwt.PyJWKClient(OIDC_JWKS_URL)
+# The salt keeps this signature apart from the admin's OIDC-state cookie on the same secret.
+session_signer = TimestampSigner(config.JWT_SECRET, salt=SESSION_SALT, digest_method=hashlib.sha256)
 
 subscribe_attempts = TTLCache(maxsize=10_000, ttl=SUBSCRIBE_ATTEMPT_WINDOW)
 provider_failures = TTLCache(maxsize=10_000, ttl=SUBSCRIBE_ATTEMPT_WINDOW)
@@ -155,29 +156,21 @@ async def exchange_code(code: str, redirect_uri: str) -> str:
     return id_token
 
 
-def token_digest(token: str) -> str:
-    return hashlib.sha256(token.encode()).hexdigest()
+def sign_session(user_id: int) -> str:
+    return session_signer.sign(str(user_id)).decode()
 
 
-def session_alive(created_at: datetime, now: datetime) -> bool:
-    return now - created_at < SESSION_LIFETIME
+def read_session_cookie(value: str) -> int:
+    try:
+        return int(session_signer.unsign(value, max_age=int(SESSION_LIFETIME.total_seconds())))
+    except BadData as error:
+        raise unauthorized("Invalid session") from error
 
 
-async def open_session(session: AsyncSession, user_id: int, replacing: str | None = None) -> str:
-    repo = SessionRepo(session)
-    await repo.purge(utcnow() - SESSION_LIFETIME)
-    if replacing is not None:
-        await repo.release(user_id, token_digest(replacing))
-    token = secrets.token_urlsafe(32)
-    await repo.create(token_hash=token_digest(token), user_id=user_id)
-    await repo.trim(user_id, SESSIONS_PER_USER)
-    return token
-
-
-def set_session_cookie(response: Response, token: str) -> None:
+def set_session_cookie(response: Response, value: str) -> None:
     response.set_cookie(
         SESSION_COOKIE,
-        token,
+        value,
         max_age=int(SESSION_LIFETIME.total_seconds()),
         httponly=True,
         secure=True,
@@ -194,16 +187,14 @@ def deny_foreign_origin(request: Request) -> None:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Foreign origin")
 
 
-async def find_session(session: AsyncSession, token: str) -> UserModel | None:
-    model = await SessionRepo(session).get(token_digest(token))
-    if model is None or not session_alive(model.created_at, utcnow()):
-        return None
-    user = await UserRepo(session).get(model.user_id)
+async def user_from_cookie(session: AsyncSession, value: str) -> UserModel:
+    user = await UserRepo(session).get(read_session_cookie(value))
     if user is None:
-        return None
+        raise unauthorized("Unknown user")
     if user.last_seen_at is None or utcnow() - user.last_seen_at > SEEN_THROTTLE:
         user.last_seen_at = utcnow()
         await session.commit()
+    deny_banned(user)
     return user
 
 
@@ -231,29 +222,18 @@ async def user_from_init_data(session: AsyncSession, init_data: str) -> UserMode
     return user
 
 
-async def read_session(session: AsyncSession, token: str) -> UserModel:
-    user = await find_session(session, token)
-    if user is None:
-        raise unauthorized("Invalid session")
-    deny_banned(user)
-    return user
-
-
 async def current_user(
     request: Request,
     session: AsyncSession = Depends(get_session),
 ) -> UserModel:
-    # The previous build still sends init data on every request; the bridge leaves with it.
     init_data = auth_header(request, INIT_DATA_SCHEME)
     if init_data is not None:
         return await user_from_init_data(session, init_data)
-    token = auth_header(request, BEARER_SCHEME)
-    if token is None:
-        token = request.cookies.get(SESSION_COOKIE)
-        if token is None:
-            raise unauthorized("Missing session")
-        deny_foreign_origin(request)
-    return await read_session(session, token)
+    value = request.cookies.get(SESSION_COOKIE)
+    if value is None:
+        raise unauthorized("Missing session")
+    deny_foreign_origin(request)
+    return await user_from_cookie(session, value)
 
 
 def claims_user_id(claims: dict[str, Any]) -> int:
