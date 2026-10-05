@@ -40,7 +40,9 @@ SUBSCRIBE_MAX_ATTEMPTS = 5
 SUBSCRIBE_ATTEMPT_WINDOW = 15 * 60
 
 logger = logging.getLogger(__name__)
-jwks_client = jwt.PyJWKClient(OIDC_JWKS_URL)
+# Telegram's JWKS edge has answered gzip to a request that named no encoding, and urllib does not
+# inflate, so the client asks for plain bytes outright (prod, 2026-10-05: 500 on the admin callback).
+jwks_client = jwt.PyJWKClient(OIDC_JWKS_URL, headers={"Accept-Encoding": "identity"})
 # The salt keeps this signature apart from the admin's OIDC-state cookie on the same secret.
 session_signer = TimestampSigner(config.JWT_SECRET, salt=SESSION_SALT, digest_method=hashlib.sha256)
 
@@ -122,7 +124,7 @@ def verify_id_token(id_token: str) -> dict[str, Any]:
             issuer=OIDC_ISSUER,
             options={"require": ["exp"]},
         )
-    except jwt.PyJWTError as error:
+    except (jwt.PyJWTError, ValueError) as error:
         logger.warning("id token rejected: %s: %s", type(error).__name__, error)
         raise unauthorized("Invalid id token") from error
 
