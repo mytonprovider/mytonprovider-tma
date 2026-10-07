@@ -48,6 +48,7 @@ class Account(BaseModel):
     data_hash: str | None = None
     data_boc: str | None = None
     last_transaction_lt: int | None = None
+    last_transaction_hash: str | None = None
 
 
 class AddressEntry(BaseModel):
