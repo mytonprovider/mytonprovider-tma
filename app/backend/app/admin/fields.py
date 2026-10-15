@@ -2,14 +2,22 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
+from starlette_admin import RequestAction
 from starlette_admin.fields import DateTimeField, FloatField, HasOne, IntegerField, StringField, TagsField
 
 from app.admin.format import reason_label, reason_tone, state_tone
 
+# The package reads the pattern with babel when it is installed and with strftime when it is
+# not (i18n.py), and the image ships without babel while the venv has it - one pattern printed
+# "%2026-%39-%15" here and "yyyy-MM-dd HH:mm" on prod. Our own formatter answers to neither.
+DATES = dict.fromkeys(
+    (RequestAction.LIST, RequestAction.DETAIL),
+    lambda _request, value: value.strftime("%Y-%m-%d %H:%M") if value else None,
+)
 
-# The package renders through babel, so the pattern is LDML: strftime printed "%2026-%39-%15".
+
 def dt_field(name: str, label: str | None = None) -> DateTimeField:
-    return DateTimeField(name, label=label, output_format="yyyy-MM-dd HH:mm")
+    return DateTimeField(name, label=label, formatter=DATES)
 
 
 # Counted from the oldest row, so a row keeps its number whatever the list is sorted,
