@@ -253,13 +253,11 @@
         .shares-track {
             stroke: var(--tblr-bg-surface-secondary);
         }
-        /* The folded tail carries no identity, so it stays neutral - and a neutral is the
-           one tone that has to be picked per theme, or it sinks into the dark surface. */
+        /* A legend row past the palette carries no colour of its own, so its dot stays neutral -
+           and a neutral is the one tone that has to be picked per theme, or it sinks into the
+           dark surface. The ring leaves those rows as bare track instead. */
         [data-bs-theme="dark"] .shares {
             --shares-neutral: #a8a8ad;
-        }
-        .shares-rest {
-            stroke: var(--shares-neutral);
         }
         .shares-rest-dot {
             background: var(--shares-neutral);

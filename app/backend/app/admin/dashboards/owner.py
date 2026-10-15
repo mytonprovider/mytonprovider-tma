@@ -254,17 +254,14 @@ def _shares(rows: Sequence[dict[str, Any]], name: Callable[[dict[str, Any]], str
         }
         for index, row in enumerate(order)
     ]
-    # The legend names every row, the ring cannot: past the palette a generated hue is one
-    # nobody can tell from another, so everything below it becomes a single neutral arc.
+    # The legend names every row, the ring only the palette: what is left over stays bare
+    # track, because a neutral arc out-shouted the five colours it was meant to stand behind.
     head = [row["slots"] for row in order[:SHARES]]
-    tail = sum(row["slots"] for row in order[SHARES:])
     arcs = []
     offset = 0.0
     for tone, value in zip(TONES, head, strict=False):
         arcs.append(_arc(tone, value, total, offset))
         offset += RING_LENGTH * value / total
-    if tail:
-        arcs.append(_arc("", tail, total, offset))
     return {"radius": RING_RADIUS, "width": RING_WIDTH, "arcs": arcs, "legend": legend}
 
 

@@ -60,7 +60,7 @@ def test_slices_come_biggest_first_and_carry_their_share() -> None:
     ]
 
 
-def test_the_legend_keeps_every_row_while_the_ring_folds_the_tail() -> None:
+def test_the_legend_keeps_every_row_while_the_ring_stops_at_the_palette() -> None:
     groups = [{"slots": 10 - index, "slots_href": "/slots", "name": str(index)} for index in range(SHARES + 3)]
 
     chart = _shares(groups, lambda group: group["name"])
@@ -68,10 +68,10 @@ def test_the_legend_keeps_every_row_while_the_ring_folds_the_tail() -> None:
     # every row is named and opens its own slots, however far down the list it sits
     assert len(chart["legend"]) == SHARES + 3
     assert all(item["href"] == "/slots" for item in chart["legend"])
-    # the ring stops at the palette and folds the rest into one neutral arc
-    assert len(chart["arcs"]) == SHARES + 1
+    # the ring stops at the palette and leaves what is left over as bare track
+    assert len(chart["arcs"]) == SHARES
     assert [item["tone"] for item in chart["legend"][SHARES:]] == ["", "", ""]
-    assert chart["arcs"][-1]["tone"] == ""
+    assert all(item["tone"] for item in chart["arcs"])
 
 
 def test_the_arcs_tile_the_circle_without_a_gap() -> None:
