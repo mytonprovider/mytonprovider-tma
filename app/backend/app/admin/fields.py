@@ -7,8 +7,9 @@ from starlette_admin.fields import DateTimeField, FloatField, HasOne, IntegerFie
 from app.admin.format import reason_label, reason_tone, state_tone
 
 
+# The package renders through babel, so the pattern is LDML: strftime printed "%2026-%39-%15".
 def dt_field(name: str, label: str | None = None) -> DateTimeField:
-    return DateTimeField(name, label=label, output_format="%Y-%m-%d %H:%M")
+    return DateTimeField(name, label=label, output_format="yyyy-MM-dd HH:mm")
 
 
 # Counted from the oldest row, so a row keeps its number whatever the list is sorted,
