@@ -110,8 +110,8 @@ def space(value: int) -> str:
     return format_space(value)
 
 
-def percent(value: float) -> str:
-    return f"{value:.0f}%"
+def percent(value: float, digits: int = 0) -> str:
+    return f"{value:.{digits}f}%"
 
 
 def mbps(value: float) -> str:

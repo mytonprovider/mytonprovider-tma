@@ -1,4 +1,6 @@
 import logging
+import math
+from collections.abc import Callable, Sequence
 from typing import Any
 
 from starlette.requests import Request
@@ -7,7 +9,17 @@ from starlette_admin import CustomView
 from starlette_admin.routing import route
 from ton_core import Address
 
-from app.admin.format import BAG_EXPLAIN, CHECK_GROUPS, SLOT_EXPLAIN, ago, gram, size, space, state_tone
+from app.admin.format import (
+    BAG_EXPLAIN,
+    CHECK_GROUPS,
+    SLOT_EXPLAIN,
+    ago,
+    gram,
+    percent,
+    size,
+    space,
+    state_tone,
+)
 from app.admin.refs import (
     bag_gateway_url,
     bag_href,
@@ -16,6 +28,7 @@ from app.admin.refs import (
     explorer_url,
     owner_bag_state_href,
     owner_bags_href,
+    owner_providers_slots_href,
     owner_reason_href,
     owner_slots_href,
     provider_href,
@@ -32,6 +45,17 @@ logger = logging.getLogger(__name__)
 # Bags and downloads are capped at a hundred newest rows; providers are not capped at
 # all - the panel is the only place they are listed, and the largest owner holds 47.
 PREVIEW = 100
+
+# The hues are the categorical set, run through the dataviz validator against both admin
+# surfaces; a ramp of one hue failed it, adjacent slices came out 3.8 apart where 15 is the
+# floor for normal vision.
+TONES = ("#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4")
+SHARES = len(TONES)
+
+# The geometry travels to the template with the slices: written down twice it would drift.
+RING_RADIUS = 42
+RING_WIDTH = 14
+RING_LENGTH = 2 * math.pi * RING_RADIUS
 
 # Every state a slot can be in - a dead slot nobody counts is a slot nobody fixes -
 # read as the owner reads them: what works, what is on its way, then what is broken,
@@ -66,6 +90,9 @@ class OwnerView(CustomView):
             reasons = await slot_repo.owner_reasons(address)
             downloading = await slot_repo.owner_slots(address, SlotState.DOWNLOADING.value, PREVIEW)
             bags = await bag_repo.owner_bags(address, PREVIEW)
+        countries = _groups(providers, address, lambda row: (row.country_iso,))
+        hostings = _groups(providers, address, lambda row: (row.isp_key,))
+        provider_rows = [_provider(row, address) for row in providers]
         return self.templates.TemplateResponse(
             request=request,
             name="owner.html",
@@ -92,7 +119,10 @@ class OwnerView(CustomView):
                     SLOT_ORDER, slot_states, lambda st: owner_slots_href(address, state=st), SLOT_EXPLAIN
                 ),
                 "checks": _checks(reasons, address),
-                "providers": [_provider(row, address) for row in providers],
+                "by_country": _shares(countries, lambda item: item["country"] or "unknown"),
+                "by_hosting": _shares(hostings, lambda item: item["isp"] or "unknown"),
+                "by_provider": _shares(provider_rows, lambda item: item["label"]),
+                "providers": provider_rows,
                 "downloading": [_download(row, now) for row in downloading],
                 "bags": [_bag(row, address) for row in bags],
             },
@@ -186,6 +216,76 @@ def _address(raw: str) -> str | None:
         return None
 
 
+# Both cards fold the provider rows already loaded, no second query. A hosting folds across
+# borders: the card beside it already answers "where", so here one company is one slice -
+# split by country, Interserver read 29% instead of the 35% it really holds.
+def _groups(rows: Sequence[Any], address: str, key: Callable[[Any], tuple[Any, ...]]) -> list[dict[str, Any]]:
+    members: dict[tuple[Any, ...], list[Any]] = {}
+    for row in rows:
+        members.setdefault(key(row), []).append(row)
+    return [
+        {
+            "country": _common([row.country for row in group]),
+            "isp": _common([row.isp for row in group]),
+            "slots": sum(row.slots for row in group),
+            "slots_href": owner_providers_slots_href(address, [row.pubkey for row in group]),
+        }
+        for group in members.values()
+    ]
+
+
+# One key, several spellings on prod, so the slice wears the one most of them use;
+# sorting first keeps a tie off the row order.
+def _common(values: list[str | None]) -> str | None:
+    named = sorted(value for value in values if value)
+    return max(named, key=named.count, default=None)
+
+
+def _shares(rows: Sequence[dict[str, Any]], name: Callable[[dict[str, Any]], str]) -> dict[str, Any]:
+    order = sorted(rows, key=lambda row: (-row["slots"], name(row)))
+    total = sum(row["slots"] for row in order) or 1
+    legend = [
+        {
+            "tone": TONES[index] if index < SHARES else "",
+            "label": name(row),
+            "count": spaced(row["slots"]),
+            "share": _share(row["slots"], total),
+            "href": row["slots_href"],
+        }
+        for index, row in enumerate(order)
+    ]
+    # The legend names every row, the ring cannot: past the palette a generated hue is one
+    # nobody can tell from another, so everything below it becomes a single neutral arc.
+    head = [row["slots"] for row in order[:SHARES]]
+    tail = sum(row["slots"] for row in order[SHARES:])
+    arcs = []
+    offset = 0.0
+    for tone, value in zip(TONES, head, strict=False):
+        arcs.append(_arc(tone, value, total, offset))
+        offset += RING_LENGTH * value / total
+    if tail:
+        arcs.append(_arc("", tail, total, offset))
+    return {"radius": RING_RADIUS, "width": RING_WIDTH, "arcs": arcs, "legend": legend}
+
+
+def _share(value: int, total: int) -> str:
+    percent_value = value / total * 100
+    # One slot in thirteen thousand is not zero, and "0.0%" reads like it is.
+    if value and percent_value < 0.05:
+        return "<0.1%"
+    return percent(percent_value, 0 if round(percent_value) >= 10 else 1)
+
+
+def _arc(tone: str, value: int, total: int, offset: float) -> dict[str, Any]:
+    length = RING_LENGTH * value / total
+    return {
+        "tone": tone,
+        "dash": f"{length:.2f} {RING_LENGTH - length:.2f}",
+        "offset": f"{-offset:.2f}",
+        "hint": f"{_share(value, total)} of {spaced(total)}",
+    }
+
+
 def _provider(row: Any, address: str) -> dict[str, Any]:
     return {
         "number": row.number,
@@ -194,6 +294,8 @@ def _provider(row: Any, address: str) -> dict[str, Any]:
         "href": provider_href(row.pubkey),
         "gateway": provider_url(row.pubkey),
         "listed": row.listed,
+        "slots": row.slots,
+        "slots_href": owner_slots_href(address, row.pubkey),
         # Each counter carries the list it counts, filtered down to this provider, and
         # the raw number the panel sorts by.
         "counts": [

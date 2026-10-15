@@ -75,6 +75,11 @@ def owner_slots_href(address: str, pubkey: str = "", state: str = "") -> str:
     return f"{BASE}/bag-slots/list?address={address}{tail}"
 
 
+def owner_providers_slots_href(address: str, pubkeys: Sequence[str]) -> str:
+    rule = quote(f"provider_pubkey__in={','.join(pubkeys)}")
+    return f"{BASE}/bag-slots/list?address={address}&filter={rule}"
+
+
 # Slots of one owner whose check answered with one of these codes; an empty list means
 # the check has not run for them yet.
 def owner_reason_href(address: str, codes: Sequence[int]) -> str:

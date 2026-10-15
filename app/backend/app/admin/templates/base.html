@@ -181,23 +181,25 @@
         .cols3 > .panel {
             margin-top: 0;
         }
-        .cols3 table {
+        /* The glossary's own measurements: .cols3 is only a layout, and share cards sit
+           in it too - a width or a row height left on the grid would reach them as well. */
+        .glossary table {
             table-layout: fixed;
         }
-        .cols3 td:first-child {
+        .glossary td:first-child {
             width: 7.5rem;
         }
-        .cols3 td:last-child {
+        .glossary td:last-child {
             width: 3.5rem;
         }
         /* One height for every row: a description that wraps onto a second line must not
            break the rhythm, or the three panels stop reading as one. The badge and the
            number then sit against the middle of that height, not against its first line -
            the rule is scoped to these panels, the lists keep their top alignment. */
-        .cols3 tbody tr {
+        .glossary tbody tr {
             height: 2.75rem;
         }
-        .cols3 tbody td {
+        .glossary tbody td {
             vertical-align: middle;
         }
         .stack {
@@ -235,6 +237,72 @@
             width: 1%;
             white-space: nowrap;
             text-align: left;
+        }
+        .shares {
+            --shares-neutral: #8a8a8e;
+            display: grid;
+            grid-template-columns: 6.5rem minmax(0, 1fr);
+            gap: 1rem;
+            align-items: center;
+            padding: 0.75rem 1.25rem 1rem;
+        }
+        .shares-ring {
+            width: 6.5rem;
+            height: 6.5rem;
+        }
+        .shares-track {
+            stroke: var(--tblr-bg-surface-secondary);
+        }
+        /* The folded tail carries no identity, so it stays neutral - and a neutral is the
+           one tone that has to be picked per theme, or it sinks into the dark surface. */
+        [data-bs-theme="dark"] .shares {
+            --shares-neutral: #a8a8ad;
+        }
+        .shares-rest {
+            stroke: var(--shares-neutral);
+        }
+        .shares-rest-dot {
+            background: var(--shares-neutral);
+        }
+        /* Five rows stand against the ring, the rest scroll - same bargain as the lists.
+           The row height is written down so the cap lands between rows, not across one. */
+        .shares-legend tr {
+            height: 1.3125rem;
+        }
+        .shares-list {
+            max-height: calc(5 * 1.3125rem);
+            overflow: auto;
+            overscroll-behavior-y: none;
+        }
+        .shares-legend {
+            width: 100%;
+            table-layout: fixed;
+            font-size: 0.8125rem;
+        }
+        .shares-legend td {
+            padding: 0.0625rem 0;
+        }
+        .shares-legend td:first-child {
+            width: 1.1rem;
+        }
+        .shares-legend td:nth-child(3) {
+            width: 3.6rem;
+        }
+        .shares-legend td:last-child {
+            width: 2.6rem;
+        }
+        /* The only cell allowed to shrink, so the counts never wrap. */
+        .shares-name {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            padding-right: 0.5rem;
+        }
+        .panel-dot {
+            display: inline-block;
+            width: 9px;
+            height: 9px;
+            border-radius: 3px;
         }
         .panel-list {
             overflow: auto;

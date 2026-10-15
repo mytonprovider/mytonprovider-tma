@@ -60,6 +60,49 @@
 {% macro empty_row(columns, text="no data") %}
     <tr class="panel-empty"><td colspan="{{ columns }}" class="text-center text-secondary py-3">{{ text }}</td></tr>
 {% endmacro %}
+{# No total in the head: all three cards would print the same one, and the tile above
+   already carries it. The track underneath shows through when there are no slots. #}
+{% macro shares(title, chart) %}
+    <div class="card panel">
+        <div class="panel-head">
+            <span class="subheader">{{ title }}</span>
+        </div>
+        <div class="shares">
+            <svg class="shares-ring" viewBox="0 0 100 100" aria-hidden="true">
+                <g transform="rotate(-90 50 50)" fill="none" stroke-width="{{ chart.width }}">
+                    <circle class="shares-track" cx="50" cy="50" r="{{ chart.radius }}"></circle>
+                    {% for arc in chart.arcs %}
+                        <circle cx="50" cy="50" r="{{ chart.radius }}"
+                                {% if arc.tone %}stroke="{{ arc.tone }}"{% else %}class="shares-rest"{% endif %}
+                                stroke-dasharray="{{ arc.dash }}" stroke-dashoffset="{{ arc.offset }}">
+                            <title>{{ arc.hint }}</title>
+                        </circle>
+                    {% endfor %}
+                </g>
+            </svg>
+            <div class="shares-list">
+                <table class="shares-legend">
+                {% for item in chart.legend %}
+                    <tr>
+                        <td>
+                            <i class="panel-dot{{ ' shares-rest-dot' if not item.tone }}"
+                               {% if item.tone %}style="background: {{ item.tone }}"{% endif %}></i>
+                        </td>
+                        <td class="shares-name" title="{{ item.label }}">{{ item.label }}</td>
+                        <td class="text-end text-nowrap">
+                            {%- if item.href -%}<a href="{{ item.href }}">{{ item.count }}</a>
+                            {%- else -%}{{ item.count }}{%- endif -%}
+                        </td>
+                        <td class="text-end text-secondary">{{ item.share }}</td>
+                    </tr>
+                    {% else %}
+                        <tr><td colspan="4" class="text-secondary">no slots</td></tr>
+                    {% endfor %}
+                </table>
+            </div>
+        </div>
+    </div>
+{% endmacro %}
 {# A key or address: the value goes deeper into the panel, the explorer hangs on the
    icon beside it - the same rule the field templates follow. #}
 {% macro key_cell(label, href, value, external="") %}
@@ -106,11 +149,18 @@
         {%- else -%}<span class="badge bg-{{ state[1] }}-lt">{{ state[0] }}</span>{%- endif -%}
     </td>
 {% endmacro %}
-{# The same pair the model lists draw for a boolean, from the package theme. #}
+{# Three answers, not two: in the catalogue, dropped out of it, or a key it has never shown.
+   The last one has no terms and no telemetry at all, which is why its other cells stand
+   empty - one red cross for both told the reader the wrong thing. #}
 {% macro flag_cell(value) %}
     <td class="text-center">
-        {%- if value -%}<span class="text-success"><i class="fa-solid fa-check-circle fa-lg"></i></span>
-        {%- else -%}<span class="text-danger"><i class="fa-solid fa-times-circle fa-lg"></i></span>{%- endif -%}
+        {%- if value is none -%}<span class="text-secondary" title="never in the catalogue">&mdash;</span>
+        {%- elif value -%}<span class="text-success"><i class="fa-solid fa-check-circle fa-lg"></i></span>
+        {%- else -%}
+            <span class="text-danger" title="gone from the catalogue">
+                <i class="fa-solid fa-times-circle fa-lg"></i>
+            </span>
+        {%- endif -%}
     </td>
 {% endmacro %}
 {# Word, what it means, how many - the row of the three state panels. The number leads

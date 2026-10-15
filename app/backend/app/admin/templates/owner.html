@@ -21,6 +21,26 @@
                 {{ bags_total }}
             {% endcall %}
         </div>
+        <div class="cols3">
+            {{ shares("Slots by country", by_country) }}
+            {{ shares("Slots by hosting", by_hosting) }}
+            {{ shares("Slots by provider", by_provider) }}
+        </div>
+        {# Three panels read by importance: bags, then their slots, then what the upstream
+           check answered. Every state is listed even at zero - the list doubles as the
+           glossary - and the order is meaning, not size, so the headers do not sort. #}
+        <div class="cols3 glossary">
+            {% set state_columns = [{"label": "State"}, {"label": "Means"}, {"label": "Count", "cls": "text-end"}] %}
+            {% call panel("Bags by state", state_columns, count=bags_total, plain=true) %}
+                {% for item in bag_states %}{{ state_row(item) }}{% endfor %}
+            {% endcall %}
+            {% call panel("Slots by state", state_columns, count=slots, plain=true) %}
+                {% for item in slot_states %}{{ state_row(item) }}{% endfor %}
+            {% endcall %}
+            {% call panel("Slots by check", state_columns, count=slots, plain=true) %}
+                {% for item in checks %}{{ state_row(item) }}{% endfor %}
+            {% endcall %}
+        </div>
         {% set download_columns = [
             {"label": "Bag ID", "sort": "text"},
             {"label": "Contract", "sort": "text"},
@@ -42,21 +62,6 @@
                 {{ empty_row(download_columns | length, "no downloads") }}
             {% endfor %}
         {% endcall %}
-        {# Three panels read by importance: bags, then their slots, then what the upstream
-           check answered. Every state is listed even at zero - the list doubles as the
-           glossary - and the order is meaning, not size, so the headers do not sort. #}
-        <div class="cols3">
-            {% set state_columns = [{"label": "State"}, {"label": "Means"}, {"label": "Count", "cls": "text-end"}] %}
-            {% call panel("Bags by state", state_columns, count=bags_total, plain=true) %}
-                {% for item in bag_states %}{{ state_row(item) }}{% endfor %}
-            {% endcall %}
-            {% call panel("Slots by state", state_columns, count=slots, plain=true) %}
-                {% for item in slot_states %}{{ state_row(item) }}{% endfor %}
-            {% endcall %}
-            {% call panel("Slots by check", state_columns, count=slots, plain=true) %}
-                {% for item in checks %}{{ state_row(item) }}{% endfor %}
-            {% endcall %}
-        </div>
         {% set provider_columns = [
             {"label": "Provider", "sort": "text"},
             {"label": "In catalogue", "cls": "text-center", "sort": "text"},
