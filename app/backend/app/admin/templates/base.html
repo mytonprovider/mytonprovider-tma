@@ -365,6 +365,31 @@
         }
     </style>
 {% endblock %}
+{# The package links the vendor select2 stylesheet after head_css, so an override of it
+   belongs here - the last block in the head - or the vendor rule wins on order alone. #}
+{% block head %}
+    <style>
+        /* The Tabler adapter dresses the select2 box but not the list it drops: that one keeps
+           the vendor's "background-color: #fff", so the dark theme painted the relation picker
+           as body-coloured text on white. The tokens carry both themes. */
+        .select2-dropdown {
+            background: var(--tblr-bg-forms);
+            border-color: var(--tblr-border-color);
+        }
+        .select2-search--dropdown .select2-search__field {
+            background: var(--tblr-bg-forms);
+            border-color: var(--tblr-border-color);
+            color: var(--tblr-body-color);
+        }
+        .select2-container--default .select2-results__option--selected {
+            background: var(--tblr-bg-surface-secondary);
+        }
+        .select2-container--default .select2-results__option--highlighted.select2-results__option--selectable {
+            background: var(--tblr-primary);
+            color: #fff;
+        }
+    </style>
+{% endblock %}
 {% block script %}
     {{ super() }}
     <script>
