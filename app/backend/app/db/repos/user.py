@@ -67,12 +67,6 @@ class UserRepo(BaseRepo[UserModel]):
         model.last_seen_at = utcnow()
         return model
 
-    async def touch(self, user_id: int) -> UserModel | None:
-        model = await self.get(user_id)
-        if model is not None:
-            model.last_seen_at = utcnow()
-        return model
-
     async def counters(self) -> Row[Any]:
         stmt = select(
             func.count().label("total"),

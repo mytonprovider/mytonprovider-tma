@@ -6,7 +6,7 @@ from sqlalchemy import Row, desc, func, select
 from app.bags import PROBLEM_STATES, BagState, SlotState
 from app.db.models import BagModel, BagSlotModel
 from app.db.repos._base import BaseRepo
-from app.db.repos._money import DAILY_COST
+from app.db.repos._slots import PER_DAY, PROVED
 
 
 # Stored means proven stored, and the bag's own state cannot answer it: the ladder decides
@@ -31,10 +31,8 @@ class BagRepo(BaseRepo[BagModel]):
             select(
                 BagSlotModel.address,
                 func.count().label("providers"),
-                # Confirmed means confirming now, not "sent a proof once": a slot whose
-                # proof went stale still has last_proof_at set.
-                func.count().filter(BagSlotModel.state == SlotState.CONFIRMED.value).label("proved"),
-                func.coalesce(func.sum(DAILY_COST).filter(BagModel.closed_at.is_(None)), 0).label("per_day"),
+                PROVED,
+                PER_DAY,
             )
             .join(BagModel, BagModel.address == BagSlotModel.address)
             .where(BagSlotModel.address.in_(addresses))
@@ -97,7 +95,6 @@ class BagRepo(BaseRepo[BagModel]):
         return {row.state: row.bags for row in (await self.session.execute(stmt)).all()}
 
     async def owner_bags(self, address: str, limit: int) -> Sequence[Row[Any]]:
-        per_day = func.coalesce(func.sum(DAILY_COST).filter(BagModel.closed_at.is_(None)), 0).label("per_day")
         # Counted oldest first like the owner's list, then read newest first: a cap of a
         # hundred must fall on today's rows, not on ones opened two years ago.
         numbered = (
@@ -116,8 +113,8 @@ class BagRepo(BaseRepo[BagModel]):
                 BagModel.size,
                 BagModel.balance,
                 func.count(BagSlotModel.provider_pubkey).label("providers"),
-                func.count().filter(BagSlotModel.state == SlotState.CONFIRMED.value).label("proved"),
-                per_day,
+                PROVED,
+                PER_DAY,
                 BagModel.state,
             )
             .join(numbered, numbered.c.address == BagModel.address)
@@ -137,7 +134,7 @@ class BagRepo(BaseRepo[BagModel]):
             select(
                 BagModel.owner_address.label("owner"),
                 func.count().label("slots"),
-                func.coalesce(func.sum(DAILY_COST).filter(BagModel.closed_at.is_(None)), 0).label("per_day"),
+                PER_DAY,
             )
             .select_from(BagSlotModel)
             .join(BagModel, BagModel.address == BagSlotModel.address)

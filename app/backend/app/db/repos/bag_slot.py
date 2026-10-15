@@ -8,6 +8,7 @@ from app.bags import CHECK, DAYS_IN_MONTH, SlotState
 from app.db.models import BagModel, BagSlotModel, ProviderModel
 from app.db.repos._base import BaseRepo
 from app.db.repos._money import DAILY_COST
+from app.db.repos._slots import CHECK_FAILED, PER_DAY, PROOF_AGE, STATE_COUNTS, of_owner
 from app.utils import utcnow
 
 SLOT_STATES = {item.value for item in SlotState}
@@ -32,11 +33,6 @@ class BagSlotRepo(BaseRepo[BagSlotModel]):
         stmt = select(BagSlotModel.address, BagSlotModel.provider_pubkey)
         result = await self.session.execute(stmt)
         return {SlotKey(row.address, row.provider_pubkey) for row in result}
-
-    async def by_address(self, address: str) -> Sequence[BagSlotModel]:
-        stmt = select(BagSlotModel).where(BagSlotModel.address == address)
-        result = await self.session.execute(stmt)
-        return result.scalars().all()
 
     async def count(self) -> int:
         return await self.session.scalar(select(func.count()).select_from(BagSlotModel)) or 0
@@ -102,24 +98,9 @@ class BagSlotRepo(BaseRepo[BagSlotModel]):
         stmt = select(ProviderModel.pubkey, ProviderModel.listed).where(ProviderModel.pubkey.in_(pubkeys))
         return {row.pubkey: bool(row.listed) for row in (await self.session.execute(stmt)).all()}
 
-    # Keys that store our bags while the catalogue has never shown them.
-    async def off_catalogue(self) -> Row[Any]:
-        known = select(ProviderModel.pubkey)
-        stmt = select(
-            func.count(func.distinct(BagSlotModel.provider_pubkey)).label("keys"),
-            func.count().label("slots"),
-        ).where(BagSlotModel.provider_pubkey.not_in(known))
-        return (await self.session.execute(stmt)).one()
-
     async def proof_age_by_provider(self, pubkeys: Sequence[str]) -> dict[str, float]:
         stmt = (
-            select(
-                BagSlotModel.provider_pubkey,
-                func.coalesce(
-                    (func.julianday("now") - func.julianday(func.max(BagSlotModel.last_proof_at))) * 86400,
-                    -1,
-                ).label("proof_age"),
-            )
+            select(BagSlotModel.provider_pubkey, PROOF_AGE)
             .where(BagSlotModel.provider_pubkey.in_(pubkeys))
             .group_by(BagSlotModel.provider_pubkey)
         )
@@ -144,15 +125,7 @@ class BagSlotRepo(BaseRepo[BagSlotModel]):
         return await self._counters(BagSlotModel.provider_pubkey == pubkey)
 
     async def _counters(self, *where: ColumnElement[bool]) -> Row[Any]:
-        stmt = (
-            select(
-                func.count().label("all"),
-                *[func.count().filter(BagSlotModel.state == state.value).label(state.value) for state in SlotState],
-                func.count().filter(BagSlotModel.reason != 0).label("check"),
-            )
-            .select_from(BagSlotModel)
-            .where(*where)
-        )
+        stmt = select(func.count().label("all"), *STATE_COUNTS, CHECK_FAILED).select_from(BagSlotModel).where(*where)
         result = await self.session.execute(stmt)
         return result.one()
 
@@ -170,68 +143,50 @@ class BagSlotRepo(BaseRepo[BagSlotModel]):
         return (await self.session.execute(stmt.offset(skip).limit(limit if limit > 0 else None))).all()
 
     async def owner_summary(self, address: str) -> Row[Any]:
-        stmt = (
+        stmt = of_owner(
             select(
                 func.count(func.distinct(BagSlotModel.provider_pubkey)).label("providers"),
                 func.count().label("slots"),
-                func.coalesce(func.sum(DAILY_COST).filter(BagModel.closed_at.is_(None)), 0).label("per_day"),
+                PER_DAY,
                 func.count().filter(BagSlotModel.state == SlotState.DOWNLOADING.value).label("downloading"),
-            )
-            .select_from(BagSlotModel)
-            .join(BagModel, BagModel.address == BagSlotModel.address)
-            .outerjoin(ProviderModel, ProviderModel.pubkey == BagSlotModel.provider_pubkey)
-            .where(BagModel.owner_address == address)
+            ).select_from(BagSlotModel),
+            address,
         )
         row: Row[Any] = (await self.session.execute(stmt)).one()
         return row
 
     async def owner_states(self, address: str) -> dict[str, int]:
-        stmt = (
-            select(BagSlotModel.state, func.count().label("slots"))
-            .join(BagModel, BagModel.address == BagSlotModel.address)
-            .where(BagModel.owner_address == address)
-            .group_by(BagSlotModel.state)
-        )
+        stmt = of_owner(select(BagSlotModel.state, func.count().label("slots")), address).group_by(BagSlotModel.state)
         return {row.state: row.slots for row in (await self.session.execute(stmt)).all()}
 
     # Reason as it came, ungrouped: the panel folds the codes into answers itself.
     async def owner_reasons(self, address: str) -> dict[int | None, int]:
-        stmt = (
-            select(BagSlotModel.reason, func.count().label("slots"))
-            .join(BagModel, BagModel.address == BagSlotModel.address)
-            .where(BagModel.owner_address == address)
-            .group_by(BagSlotModel.reason)
-        )
+        stmt = of_owner(select(BagSlotModel.reason, func.count().label("slots")), address).group_by(BagSlotModel.reason)
         return {row.reason: row.slots for row in (await self.session.execute(stmt)).all()}
 
     def _owner_providers_stmt(self, address: str) -> Select[Any]:
+        stmt = select(
+            BagSlotModel.provider_pubkey.label("pubkey"),
+            func.row_number().over(order_by=func.min(BagSlotModel.created_at)).label("number"),
+            func.count().label("slots"),
+            func.coalesce(func.sum(BagModel.size).filter(BagSlotModel.state == SlotState.CONFIRMED.value), 0).label(
+                "size"
+            ),
+            PER_DAY,
+            *STATE_COUNTS,
+            CHECK_FAILED,
+            PROOF_AGE,
+            ProviderModel.listed,
+            ProviderModel.disk_used,
+            (ProviderModel.disk_total - ProviderModel.disk_used).label("disk_free"),
+            ProviderModel.country,
+            ProviderModel.country_iso,
+            ProviderModel.isp,
+            ProviderModel.isp_key,
+        ).select_from(BagSlotModel)
         return (
-            select(
-                BagSlotModel.provider_pubkey.label("pubkey"),
-                func.row_number().over(order_by=func.min(BagSlotModel.created_at)).label("number"),
-                func.count().label("slots"),
-                func.coalesce(func.sum(BagModel.size).filter(BagSlotModel.state == SlotState.CONFIRMED.value), 0).label(
-                    "size"
-                ),
-                func.coalesce(func.sum(DAILY_COST).filter(BagModel.closed_at.is_(None)), 0).label("per_day"),
-                *[func.count().filter(BagSlotModel.state == state.value).label(state.value) for state in SlotState],
-                func.count().filter(BagSlotModel.reason != 0).label(CHECK),
-                func.coalesce(
-                    (func.julianday("now") - func.julianday(func.max(BagSlotModel.last_proof_at))) * 86400,
-                    -1,
-                ).label("proof_age"),
-                ProviderModel.listed,
-                ProviderModel.disk_used,
-                (ProviderModel.disk_total - ProviderModel.disk_used).label("disk_free"),
-                ProviderModel.country,
-                ProviderModel.country_iso,
-                ProviderModel.isp,
-                ProviderModel.isp_key,
-            )
-            .select_from(BagSlotModel)
-            .join(BagModel, BagModel.address == BagSlotModel.address)
+            of_owner(stmt, address)
             .outerjoin(ProviderModel, ProviderModel.pubkey == BagSlotModel.provider_pubkey)
-            .where(BagModel.owner_address == address)
             .group_by(BagSlotModel.provider_pubkey)
         )
 
@@ -243,36 +198,36 @@ class BagSlotRepo(BaseRepo[BagSlotModel]):
         return select(inner).where(func.lower(inner.c.pubkey).like(f"{query.strip().lower()}%"))
 
     async def owner_slots(self, address: str, state: str, limit: int) -> Sequence[Row[Any]]:
-        numbered = (
+        numbered = of_owner(
             select(
                 BagSlotModel.address.label("address"),
                 BagSlotModel.provider_pubkey.label("provider_pubkey"),
                 func.row_number().over(order_by=BagSlotModel.created_at).label("number"),
-            )
-            .join(BagModel, BagModel.address == BagSlotModel.address)
-            .where(BagModel.owner_address == address)
-            .subquery()
-        )
+            ),
+            address,
+        ).subquery()
         stmt = (
-            select(
-                numbered.c.number,
-                BagSlotModel.address,
-                BagSlotModel.provider_pubkey,
-                BagSlotModel.created_at,
-                BagSlotModel.last_proof_at,
-                BagSlotModel.payment_max_span,
-                BagSlotModel.rate_per_mb_day,
-                BagSlotModel.state,
-                BagModel.bag_id,
-                BagModel.size,
+            of_owner(
+                select(
+                    numbered.c.number,
+                    BagSlotModel.address,
+                    BagSlotModel.provider_pubkey,
+                    BagSlotModel.created_at,
+                    BagSlotModel.last_proof_at,
+                    BagSlotModel.payment_max_span,
+                    BagSlotModel.rate_per_mb_day,
+                    BagSlotModel.state,
+                    BagModel.bag_id,
+                    BagModel.size,
+                ),
+                address,
             )
-            .join(BagModel, BagModel.address == BagSlotModel.address)
             .join(
                 numbered,
                 (numbered.c.address == BagSlotModel.address)
                 & (numbered.c.provider_pubkey == BagSlotModel.provider_pubkey),
             )
-            .where(BagModel.owner_address == address, BagSlotModel.state == state)
+            .where(BagSlotModel.state == state)
             .order_by(BagSlotModel.created_at)
             .limit(limit)
         )
