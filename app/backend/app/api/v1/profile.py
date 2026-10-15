@@ -6,7 +6,6 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app import config
 from app.alerts import THRESHOLD_MAX, THRESHOLD_MIN, AlertType
 from app.api.auth import (
     current_user,
@@ -18,7 +17,7 @@ from app.api.auth import (
 )
 from app.db import get_session
 from app.db.models import SubscriptionModel, UserModel
-from app.db.repos import AlertChannelRepo, ProviderRepo, SubscriptionRepo
+from app.db.repos import AdminRepo, AlertChannelRepo, ProviderRepo, SubscriptionRepo
 
 router = APIRouter(prefix="/profile")
 
@@ -119,7 +118,7 @@ async def profile_response(session: AsyncSession, user: UserModel) -> ProfileRes
     subscriptions = await SubscriptionRepo(session).all_by_user(user.id)
     channels = await AlertChannelRepo(session).invitable(list(user.trusted_addresses), user.lang)
     return ProfileResponse(
-        is_admin=user.id in config.ADMIN_IDS,
+        is_admin=await AdminRepo(session).allowed(user.id),
         fullname=user.fullname,
         username=user.username,
         photo_url=user.photo_url,

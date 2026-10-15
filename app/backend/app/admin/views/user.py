@@ -7,11 +7,12 @@ from starlette_admin.actions import row_action
 from starlette_admin.exceptions import ActionFailed
 from starlette_admin.fields import HasOne, IntegerField, JSONField, TagsField, URLField
 
-from app import config
+from app.admin.auth import panel_user
 from app.admin.fields import LinkTagsField, StateField, dt_field, number_field
 from app.admin.format import WALLETS_FORMATTER
 from app.admin.refs import explorer_url, provider_url, username_ref
 from app.admin.views._base import BaseAdminView
+from app.db.repos import AdminRepo
 from app.utils import short_address, short_key, utcnow
 
 
@@ -98,7 +99,7 @@ class UserView(BaseAdminView):
         if user is None:
             raise ActionFailed("User not found")
         user.banned_at = utcnow()
-        user.banned_by = request.session.get("user_id")
+        user.banned_by = panel_user(request).user_id
 
     @row_action(
         name="unban",
@@ -116,7 +117,8 @@ class UserView(BaseAdminView):
 
     async def is_row_action_allowed_for_obj(self, request: Request, name: str, obj: Any) -> bool:
         if name in ("ban", "unban"):
-            return obj.id not in config.ADMIN_IDS and (obj.banned_at is None) == (name == "ban")
+            ours = await AdminRepo(request.state.session).allowed(obj.id)
+            return not ours and (obj.banned_at is None) == (name == "ban")
         return await super().is_row_action_allowed_for_obj(request, name, obj)
 
     async def repr(self, obj: Any, request: Request) -> str:

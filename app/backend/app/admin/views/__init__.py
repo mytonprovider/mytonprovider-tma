@@ -1,5 +1,6 @@
 from starlette_admin.views import DropDown, Link
 
+from app.admin.views.admin import AdminView
 from app.admin.views.alert import AlertView
 from app.admin.views.alert_channel import AlertChannelView
 from app.admin.views.bag import BagView
@@ -9,6 +10,7 @@ from app.admin.views.provider import ProviderView
 from app.admin.views.subscription import SubscriptionView
 from app.admin.views.user import UserView
 from app.db.models import (
+    AdminModel,
     AlertChannelModel,
     AlertModel,
     BagModel,
@@ -22,6 +24,7 @@ from app.db.models import (
 VIEWS = [
     Link(menu_label="Home", icon="fa-solid fa-house", url="/admin/"),
     UserView(UserModel),
+    AdminView(AdminModel),
     DropDown(
         "Monitoring",
         icon="fa-solid fa-bell",

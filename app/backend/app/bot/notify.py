@@ -95,20 +95,18 @@ async def report(
 
 
 async def report_error(source: str, error: BaseException) -> None:
-    if not config.BOT_DEV_IDS:
-        return
     exc_type = type(error).__name__
     lines = str(error).strip().splitlines()
     exc_text = lines[0] if lines else exc_type
     header = f"<b>{html.escape(source)}</b>\n<b>{html.escape(exc_type)}</b>"
     caption = f"{header}: <code>{html.escape(exc_text[:900])}</code>"
     tb = "".join(traceback.format_exception(type(error), error, error.__traceback__)).encode()
-    for dev_id in config.BOT_DEV_IDS:
-        try:
-            async with sender.lock:
-                await bot.send_document(dev_id, BufferedInputFile(tb, filename=f"error_{source}.txt"), caption=caption)
-        except Exception as send_error:
-            logger.warning("failed to report error to dev %s: %s", dev_id, send_error)
+    document = BufferedInputFile(tb, filename=f"error_{source}.txt")
+    try:
+        async with sender.lock:
+            await bot.send_document(config.ADMIN_ID, document, caption=caption)
+    except Exception as send_error:
+        logger.warning("failed to report error to the owner: %s", send_error)
 
 
 async def _subscribers(session: AsyncSession, pubkey: str, alert_type: AlertType) -> list[UserModel]:

@@ -1,6 +1,8 @@
 import logging
 import secrets
+from dataclasses import dataclass
 from datetime import timedelta
+from typing import cast
 from urllib.parse import urlencode
 
 from fastapi.concurrency import run_in_threadpool
@@ -17,6 +19,7 @@ from app import config
 from app.api import auth
 from app.db import session_factory
 from app.db.models import UserModel
+from app.db.repos import AdminRepo
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +30,16 @@ STATE_KEY = "oauth_state"
 NEXT_KEY = "oauth_next"
 # The signed cookie carries nothing but the OIDC handshake, so it expires with it.
 STATE_TTL = timedelta(minutes=10)
+
+
+# AdminUser of the package carries no id, and the panel needs one to tell the owner apart.
+@dataclass(kw_only=True)
+class PanelUser(AdminUser):
+    user_id: int
+
+
+def panel_user(request: Request) -> PanelUser:
+    return cast("PanelUser", request.state.admin_user)
 
 
 class TelegramAuthProvider(OAuthProvider):
@@ -63,7 +76,7 @@ class TelegramAuthProvider(OAuthProvider):
         claims = await run_in_threadpool(auth.verify_id_token, id_token)
         async with session_factory() as session:
             user = await auth.user_from_claims(claims, session)
-            if user.id not in config.ADMIN_IDS:
+            if not await AdminRepo(session).allowed(user.id):
                 logger.warning("access denied for %s", user.id)
                 raise HTTPException(HTTP_403_FORBIDDEN, "Access denied")
             await session.commit()
@@ -109,12 +122,17 @@ class TelegramAuthProvider(OAuthProvider):
         try:
             async with session_factory() as session:
                 user = await auth.user_from_cookie(session, value)
+                allowed = await AdminRepo(session).allowed(user.id)
         except HTTPException:
             return None
-        return user if user.id in config.ADMIN_IDS else None
+        return user if allowed else None
 
-    def _admin_user(self, user: UserModel) -> AdminUser:
-        return AdminUser(username=user.username or user.fullname or str(user.id), photo_url=user.photo_url)
+    def _admin_user(self, user: UserModel) -> PanelUser:
+        return PanelUser(
+            username=user.username or user.fullname or str(user.id),
+            photo_url=user.photo_url,
+            user_id=user.id,
+        )
 
     async def authenticate(self, request: Request) -> AdminUser | None:
         user = await self._session_user(request)

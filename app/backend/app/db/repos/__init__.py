@@ -1,3 +1,4 @@
+from .admin import AdminRepo
 from .alert import AlertRepo
 from .alert_channel import AlertChannelRepo
 from .bag import BagRepo
@@ -8,6 +9,7 @@ from .subscription import SubscriptionRepo
 from .user import UserRepo
 
 __all__ = [
+    "AdminRepo",
     "AlertChannelRepo",
     "AlertRepo",
     "BagRepo",

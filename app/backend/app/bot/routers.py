@@ -15,7 +15,7 @@ from app import config
 from app.bot import render
 from app.bot.translator import t
 from app.db import session_factory
-from app.db.repos import AlertChannelRepo, UserRepo
+from app.db.repos import AdminRepo, AlertChannelRepo, UserRepo
 
 logger = logging.getLogger(__name__)
 
@@ -82,7 +82,7 @@ async def _owner_chat(event: ChatMemberUpdated, status: ChatMemberStatus) -> Non
         channel = await repo.get(event.chat.id)
         if channel is not None:
             channel.enabled = active
-        elif active and event.from_user.id in config.ADMIN_IDS:
+        elif active and await AdminRepo(session).allowed(event.from_user.id):
             # A channel signs itself up when one of us adds the bot; address and language
             # are filled in by hand later.
             await repo.create(

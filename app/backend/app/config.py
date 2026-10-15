@@ -26,11 +26,11 @@ TG_CLIENT_ID = env.int("TG_CLIENT_ID")
 TG_CLIENT_SECRET = env.str("TG_CLIENT_SECRET")
 
 BOT_TOKEN = env.str("BOT_TOKEN")
-BOT_DEV_IDS = env.list("BOT_DEV_IDS", [], subcast=int)
-BOT_ADMIN_IDS = env.list("BOT_ADMIN_IDS", [], subcast=int)
 BOT_USERNAME = env.str("BOT_USERNAME")
-ADMIN_IDS = frozenset(BOT_DEV_IDS + BOT_ADMIN_IDS)
 BOT_WEBHOOK_SECRET = env.str("BOT_WEBHOOK_SECRET")
+
+# The rest of the admins are rows in "admins", added by this one in the panel.
+ADMIN_ID = env.int("ADMIN_ID")
 
 TONCENTER_API_URL = "https://toncenter.com/api/v3"
 TONCENTER_API_KEY = env.str("TONCENTER_API_KEY")
