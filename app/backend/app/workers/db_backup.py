@@ -8,7 +8,7 @@ from app.workers._base import BaseWorker
 
 logger = logging.getLogger(__name__)
 
-SNAPSHOT_LIMIT = 14
+SNAPSHOT_LIMIT = 7
 
 
 class DbBackupWorker(BaseWorker):
@@ -29,4 +29,4 @@ class DbBackupWorker(BaseWorker):
         for old in stale:
             old.unlink()
 
-        logger.debug("backed up %s: %d bytes, removed %d", path.name, path.stat().st_size, len(stale))
+        logger.info("backed up %s: %d bytes, removed %d", path.name, path.stat().st_size, len(stale))
