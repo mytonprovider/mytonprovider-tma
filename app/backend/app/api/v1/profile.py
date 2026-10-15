@@ -1,5 +1,4 @@
 import hmac
-import logging
 import re
 from typing import Literal, TypeAlias
 
@@ -20,8 +19,6 @@ from app.api.auth import (
 from app.db import get_session
 from app.db.models import SubscriptionModel, UserModel
 from app.db.repos import AlertChannelRepo, ProviderRepo, SubscriptionRepo
-
-logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/profile")
 
@@ -109,12 +106,6 @@ def _clean_names(source: dict[str, str], pattern: re.Pattern[str], lower: bool) 
         if name:
             cleaned[key.lower() if lower else key] = name
     return cleaned
-
-
-def _dev_master(user_id: int, password: str) -> bool:
-    if not config.DEV_MASTER_PASS or user_id not in config.BOT_DEV_IDS:
-        return False
-    return hmac.compare_digest(password, config.DEV_MASTER_PASS)
 
 
 def subscription_out(subscription: SubscriptionModel) -> SubscriptionOut:
@@ -248,16 +239,12 @@ async def subscribe(
     provider = await ProviderRepo(session).get(pubkey)
     if provider is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Provider not found")
-    if _dev_master(user.id, body.password):
-        logger.warning("dev %s subscribed to %s with the master password", user.id, pubkey)
-        stored_pass = provider.telemetry_pass
-    else:
-        if provider.telemetry_pass is None:
-            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Provider has no telemetry password")
-        stored_pass = hash_telemetry_pass(body.password)
-        if not hmac.compare_digest(stored_pass, provider.telemetry_pass):
-            record_provider_failure(pubkey)
-            raise HTTPException(status.HTTP_403_FORBIDDEN, "Wrong password")
+    if provider.telemetry_pass is None:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Provider has no telemetry password")
+    stored_pass = hash_telemetry_pass(body.password)
+    if not hmac.compare_digest(stored_pass, provider.telemetry_pass):
+        record_provider_failure(pubkey)
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Wrong password")
     reset_subscribe_attempts(user.id)
     subscription_repo = SubscriptionRepo(session)
     existing = await subscription_repo.get(user.id, pubkey)
