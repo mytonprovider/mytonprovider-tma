@@ -19,6 +19,9 @@ APP_COMMIT = env.str("APP_COMMIT", "")
 JWT_SECRET = env.str("JWT_SECRET")
 WEBAPP_URL = env.str("WEBAPP_URL").rstrip("/")
 
+# Not "*": that trusts the leftmost X-Forwarded-For, which is whatever the client sent.
+TRUSTED_PROXIES = env.str("FORWARDED_ALLOW_IPS", "127.0.0.1,172.16.0.0/12")
+
 TG_CLIENT_ID = env.int("TG_CLIENT_ID")
 TG_CLIENT_SECRET = env.str("TG_CLIENT_SECRET")
 

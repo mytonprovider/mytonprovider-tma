@@ -70,7 +70,7 @@ def main() -> None:
     admin.mount(app)
     app.mount("/", CachedStaticFiles(directory=static_dir, html=True))
 
-    uvicorn.run(app, host="0.0.0.0", port=8080)
+    uvicorn.run(app, host="0.0.0.0", port=8080, forwarded_allow_ips=config.TRUSTED_PROXIES)
 
 
 if __name__ == "__main__":
