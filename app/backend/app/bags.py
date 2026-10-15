@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from datetime import datetime, timedelta
 from enum import Enum
 from typing import TYPE_CHECKING
@@ -91,9 +93,9 @@ def download_budget(size: int | None, span: int | None) -> timedelta:
 
 # Branch order is the priority and keeps the slices disjoint: owner, then refusal, then work.
 def slot_state(
-    slot: "BagSlotModel",
-    bag: "BagModel",
-    provider: "ProviderModel | None",
+    slot: BagSlotModel,
+    bag: BagModel,
+    provider: ProviderModel | None,
     peers: int,
     proved: int,
     now: datetime,
@@ -137,7 +139,7 @@ def slot_state(
 
 
 # Same order one level up: the owner's decision, then anyone still fetching, then the rest.
-def bag_state(bag: "BagModel", states: list[SlotState]) -> BagState:
+def bag_state(bag: BagModel, states: list[SlotState]) -> BagState:
     if bag.closed_at is not None:
         return BagState.CLOSED
     if SlotState.NOT_PAID in states:
