@@ -2,7 +2,7 @@
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Telegram Mini App](https://img.shields.io/badge/Telegram-Mini%20App-blue?logo=telegram&logoColor=white)](https://core.telegram.org/bots/webapps)
-[![Python](https://img.shields.io/badge/Python-3.10-blue.svg?logo=python&logoColor=white)](https://www.python.org/)
+[![Python](https://img.shields.io/badge/Python-3.12-blue.svg?logo=python&logoColor=white)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-teal?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![React](https://img.shields.io/badge/React-blue?logo=react&logoColor=white)](https://react.dev/)
 [![Docker](https://img.shields.io/badge/Docker-blue?logo=docker&logoColor=white)](https://www.docker.com/)
@@ -50,17 +50,16 @@ pnpm install
 pnpm dev
 ```
 
-The dev server proxies `/api` to `$BACKEND`, `http://localhost:8080` by default, so the frontend can run against a
-local backend or a deployed one (`BACKEND=https://example.org pnpm dev`, or the same line in `app/frontend/.env.local`).
-Outside Telegram the app authenticates through the Telegram Login Widget, which only works on the domain registered
-with the bot.
+The dev server proxies `/api` and `/admin` to `$BACKEND`, `http://localhost:8080` by default, so the frontend can run
+against a local backend or a deployed one (`BACKEND=https://example.org pnpm dev`, or the same line in
+`app/frontend/.env.local`). Outside Telegram the app authenticates through the Telegram Login Widget, which only works
+on the domain registered with the bot.
 
 ## Environment Variables
 
 | Variable                | Description                                       | Example                   |
 |-------------------------|---------------------------------------------------|---------------------------|
 | `ADMIN_ID`              | Telegram ID of the owner                          | `123456789`               |
-| `FORWARDED_ALLOW_IPS`   | Proxy addresses allowed to set X-Forwarded-*      | `172.20.0.0/16`           |
 | `WEBAPP_URL`            | Public app URL; base for the Telegram bot webhook | `https://mtp.example.com` |
 | `BOT_TOKEN`             | Bot token from @BotFather                         | `123456:qweRTY`           |
 | `BOT_USERNAME`          | Bot username, without `@`                         | `mytonproviderbot`        |
