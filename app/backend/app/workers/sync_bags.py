@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 class SyncBagsWorker(BaseWorker):
-    interval = 30 * 60
+    interval = 10 * 60
     delay = 30
 
     async def run(self) -> None:
