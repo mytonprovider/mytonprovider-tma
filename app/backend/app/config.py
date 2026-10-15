@@ -18,9 +18,6 @@ APP_COMMIT = env.str("APP_COMMIT", "")
 
 JWT_SECRET = env.str("JWT_SECRET")
 WEBAPP_URL = env.str("WEBAPP_URL").rstrip("/")
-API_RATE_LIMIT = env.int("API_RATE_LIMIT", 100)
-API_RATE_WINDOW = env.int("API_RATE_WINDOW", 60)
-AUTH_RATE_LIMIT = env.int("AUTH_RATE_LIMIT", 30)
 
 TG_CLIENT_ID = env.int("TG_CLIENT_ID")
 TG_CLIENT_SECRET = env.str("TG_CLIENT_SECRET")

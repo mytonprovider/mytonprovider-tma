@@ -4,7 +4,9 @@ from typing import Any
 from cachetools import TTLCache
 from fastapi import Depends, HTTPException, Request, Response, status
 
-from app import config
+WINDOW = 60
+PUBLIC_LIMIT = 100
+AUTH_LIMIT = 30
 
 _buckets: dict[str, TTLCache] = {}
 
@@ -12,7 +14,7 @@ _buckets: dict[str, TTLCache] = {}
 def _bucket(name: str) -> TTLCache:
     cache = _buckets.get(name)
     if cache is None:
-        cache = TTLCache(maxsize=100_000, ttl=config.API_RATE_WINDOW)
+        cache = TTLCache(maxsize=100_000, ttl=WINDOW)
         _buckets[name] = cache
     return cache
 
@@ -33,18 +35,18 @@ def rate_limit(name: str, limit: int) -> Any:
     async def guard(request: Request, response: Response) -> None:
         now = time.monotonic()
         ip = _client_ip(request)
-        hits = [hit for hit in cache.get(ip, ()) if now - hit < config.API_RATE_WINDOW]
+        hits = [hit for hit in cache.get(ip, ()) if now - hit < WINDOW]
         response.headers["X-RateLimit-Limit"] = str(limit)
         response.headers["X-RateLimit-Remaining"] = str(max(0, limit - len(hits) - 1))
         oldest = min(hits) if hits else now
-        response.headers["X-RateLimit-Reset"] = str(int(config.API_RATE_WINDOW - (now - oldest)))
+        response.headers["X-RateLimit-Reset"] = str(int(WINDOW - (now - oldest)))
         if len(hits) >= limit:
             cache[ip] = hits
             raise HTTPException(
                 status.HTTP_429_TOO_MANY_REQUESTS,
                 "Too many requests",
                 headers={
-                    "Retry-After": str(config.API_RATE_WINDOW),
+                    "Retry-After": str(WINDOW),
                     "X-RateLimit-Limit": str(limit),
                     "X-RateLimit-Remaining": "0",
                 },
@@ -55,5 +57,5 @@ def rate_limit(name: str, limit: int) -> Any:
     return Depends(guard)
 
 
-limiter = rate_limit("public", config.API_RATE_LIMIT)
-auth_limiter = rate_limit("auth", config.AUTH_RATE_LIMIT)
+limiter = rate_limit("public", PUBLIC_LIMIT)
+auth_limiter = rate_limit("auth", AUTH_LIMIT)
