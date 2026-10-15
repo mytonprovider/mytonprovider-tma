@@ -29,7 +29,15 @@ HISTORY_SKIP = (
     "max_span",
     "max_bag_size_bytes",
     "min_rate_per_mb_day",
+    "country",
+    "country_iso",
+    "city",
+    "isp",
+    "isp_key",
 )
+
+# Legal form at the end of a hosting name, dropped so that its spellings fold into one key.
+LEGAL_SUFFIXES = ("inc", "llc", "ltd", "limited", "gmbh", "ou", "pjsc", "plc")
 
 
 class SyncProvidersWorker(BaseWorker):
@@ -86,6 +94,8 @@ async def _collect_telemetry() -> dict[str, Telemetry]:
 def _provider_row(provider: Provider) -> dict[str, Any]:
     last_online = provider.last_online_check_time
     registered = provider.reg_time
+    location = provider.location or {}
+    isp = _known((provider.telemetry or {}).get("isp"))
     return {
         "pubkey": provider.pubkey.lower(),
         "wallet_address": user_friendly(provider.address),
@@ -97,6 +107,11 @@ def _provider_row(provider: Provider) -> dict[str, Any]:
         "max_span": provider.max_span,
         "max_bag_size_bytes": provider.max_bag_size_bytes,
         "min_rate_per_mb_day": _min_rate_per_mb_day(provider.price),
+        "country": _known(location.get("country")),
+        "country_iso": _known(location.get("country_iso")),
+        "city": _known(location.get("city")),
+        "isp": isp,
+        "isp_key": _isp_key(isp) if isp else None,
         "updated_at": utcnow(),
     }
 
@@ -105,6 +120,19 @@ def _min_rate_per_mb_day(price: int | None) -> int | None:
     if not price:
         return None
     return price // PRICE_MB_DAYS
+
+
+# The speedtest writes "Unknown" where it found no name: that word and an empty string are nothing.
+def _known(value: Any) -> str | None:
+    text = str(value).strip() if value else ""
+    return text if text and text.lower() != "unknown" else None
+
+
+def _isp_key(name: str) -> str | None:
+    words = name.lower().replace(",", " ").split()
+    while words and words[-1].rstrip(".") in LEGAL_SUFFIXES:
+        words.pop()
+    return " ".join(words) or None
 
 
 def _telemetry_row(provider: Provider, telemetry: Telemetry, prior: ProviderModel | None) -> dict[str, Any]:

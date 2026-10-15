@@ -18,6 +18,7 @@ class Provider(BaseModel):
     max_span: int | None = None
     max_bag_size_bytes: int | None = None
     price: int | None = None
+    location: dict[str, Any] | None = None
     telemetry: dict[str, Any] | None = None
 
 

@@ -223,6 +223,10 @@ class BagSlotRepo(BaseRepo[BagSlotModel]):
                 ProviderModel.listed,
                 ProviderModel.disk_used,
                 (ProviderModel.disk_total - ProviderModel.disk_used).label("disk_free"),
+                ProviderModel.country,
+                ProviderModel.country_iso,
+                ProviderModel.isp,
+                ProviderModel.isp_key,
             )
             .select_from(BagSlotModel)
             .join(BagModel, BagModel.address == BagSlotModel.address)

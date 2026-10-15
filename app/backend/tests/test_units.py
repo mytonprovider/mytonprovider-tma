@@ -3,6 +3,8 @@ from app.utils import format_size, format_space
 from app.workers.sync_providers import (
     _cpu_load_percent,
     _disk_space,
+    _isp_key,
+    _known,
     _min_rate_per_mb_day,
     _net_capacity_mbps,
     _net_load_pct,
@@ -61,3 +63,20 @@ def test_disk_and_ram_stop_at_gigabytes() -> None:
     # so the number matches what the provider typed into the installer
     assert format_space(1024**4) == "1024 GB"
     assert format_space(int(3.5 * GIB)) == "3.5 GB"
+
+
+def test_an_unnamed_host_is_stored_as_nothing() -> None:
+    assert _known(" Interserver ") == "Interserver"
+    assert _known("Unknown") is None
+    assert _known("") is None
+    assert _known(None) is None
+
+
+def test_hosting_spellings_fold_into_one_key() -> None:
+    # the names as the catalogue shows them, from the 2026-10-09 survey
+    assert _isp_key("Interserver") == _isp_key("Interserver, Inc") == _isp_key("INTERSERVER, INC.") == "interserver"
+    assert _isp_key("AEZA GROUP LLC") == _isp_key("Aeza Group") == "aeza group"
+    assert _isp_key("Hetzner Online GmbH") == "hetzner online"
+    assert _isp_key("JSC IOT") == "jsc iot"
+    assert _isp_key("yandex.cloud") == "yandex.cloud"
+    assert _isp_key("LLC") is None
